@@ -155,7 +155,10 @@ data class ThemeRef(
     val version: String = "",
     val builtIn: Boolean = false,
     val source: String = "local",
-)
+    val platforms: List<String> = listOf("desktop", "mobile"),
+) {
+    val supportsMobile: Boolean get() = platforms.isEmpty() || "mobile" in platforms
+}
 
 fun dateKey(time: Long = System.currentTimeMillis()): String {
     val c = Calendar.getInstance().apply { timeInMillis = time }

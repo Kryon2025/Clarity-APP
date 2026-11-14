@@ -70,6 +70,9 @@ class BridgeClient(private val settings: BridgeSettings) {
                 version = item.optString("version", ""),
                 builtIn = item.optBoolean("builtIn", false),
                 source = "desktop",
+                platforms = item.optJSONArray("platforms")?.let { pixels ->
+                    (0 until pixels.length()).mapNotNull { pixels.optString(it).lowercase().takeIf { p -> p == "desktop" || p == "mobile" } }.distinct()
+                }.orEmpty(),
             )
         }
     }

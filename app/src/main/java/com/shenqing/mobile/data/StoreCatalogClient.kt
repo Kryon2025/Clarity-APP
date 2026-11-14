@@ -20,7 +20,18 @@ data class StoreItem(
     val tags: List<String> = emptyList(),
     val palette: JSONObject? = null,
     val downloadUrl: String = "",
-)
+    val platforms: List<String> = emptyList(),
+) {
+    val supportsMobile: Boolean get() = platforms.isEmpty() || "mobile" in platforms
+    val supportsDesktop: Boolean get() = platforms.isEmpty() || "desktop" in platforms
+    val platformLabel: String
+        get() = when {
+            platforms.isEmpty() -> "未声明"
+            platforms.contains("desktop") && platforms.contains("mobile") -> "双端"
+            platforms.contains("mobile") -> "仅手机"
+            else -> "仅桌面"
+        }
+}
 
 class StoreCatalogException(message: String) : Exception(message)
 
@@ -66,6 +77,10 @@ object StoreCatalogClient {
                     tags = tags,
                     palette = item.optJSONObject("palette"),
                     downloadUrl = item.optString("download_url", ""),
+                    platforms = item.optJSONArray("platforms")?.let { array ->
+                        (0 until array.length()).mapNotNull { array.optString(it).lowercase().takeIf { value -> value == "desktop" || value == "mobile" } }
+                            .distinct()
+                    } ?: emptyList(),
                 )
             }
         } catch (error: StoreCatalogException) {

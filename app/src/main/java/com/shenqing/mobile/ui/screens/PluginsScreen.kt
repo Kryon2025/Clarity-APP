@@ -108,8 +108,10 @@ fun PluginsScreen(
                 context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
             }.onSuccess { text ->
                 if (text != null) {
-                    themeRepo.importPack(text).onSuccess { entry -> themeRepo.apply(entry.id) }
-                        .onFailure { error = it.message ?: "主题包无效" }
+                    themeRepo.importPack(text).onSuccess { entry ->
+                        if (entry.supportsMobile) themeRepo.apply(entry.id)
+                        else error = "该主题包声明为仅桌面（platforms 不含 mobile），已保留但不自动应用"
+                    }.onFailure { error = it.message ?: "主题包无效" }
                 }
             }.onFailure { error = it.message ?: "无法读取主题包" }
         }
@@ -175,11 +177,12 @@ fun PluginsScreen(
                 },
             )
         }
-        items(localEntries) { entry -> ThemeRow(entry) { themeRepo.apply(entry.id) } }
+        items(localEntries) { entry -> ThemeRow(entry) { if (entry.supportsMobile) themeRepo.apply(entry.id) else error = "该主题包仅桌面，手机不能应用" } }
         items(remoteThemes) { ref ->
             ThemeRow(
-                ThemeEntry(ref.id, ref.name, ref.author, ref.version, false, "来自桌面"),
+                ThemeEntry(ref.id, ref.name, ref.author, ref.version, false, "来自桌面", platforms = ref.platforms),
             ) {
+                if (!ref.supportsMobile) { error = "该主题包声明为仅桌面，手机不能应用"; return@ThemeRow }
                 scope.launch {
                     runCatching {
                         val json = BridgeClient(bridge).themePack(ref.id)

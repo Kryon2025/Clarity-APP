@@ -42,7 +42,16 @@ data class ThemeEntry(
     val version: String,
     val builtIn: Boolean,
     val description: String = "",
-)
+    val platforms: List<String> = listOf("desktop", "mobile"),
+) {
+    val supportsMobile: Boolean get() = platforms.isEmpty() || "mobile" in platforms
+    val platformLabel: String
+        get() = when {
+            platforms.contains("desktop") && platforms.contains("mobile") -> "双端"
+            platforms.contains("mobile") -> "仅手机"
+            else -> "仅桌面"
+        }
+}
 
 class ThemeRepository private constructor(private val context: Context) {
     private val repo = AppRepository.get(context)
@@ -182,6 +191,7 @@ class ThemeRepository private constructor(private val context: Context) {
             version = pack.optString("version", ""),
             builtIn = false,
             description = pack.optString("description", ""),
+            platforms = parsePlatforms(pack),
         )
         refreshEntries()
         entry
@@ -194,7 +204,7 @@ class ThemeRepository private constructor(private val context: Context) {
         return if (isBuiltIn(id)) id else "custom:" + id
     }
 
-    fun importPaletteTheme(id: String, name: String, description: String, palette: JSONObject): ThemeEntry? {
+    fun importPaletteTheme(id: String, name: String, description: String, palette: JSONObject, platforms: List<String> = listOf("desktop", "mobile")): ThemeEntry? {
         val pack = JSONObject().apply {
             put("schema", "shenqing.theme-pack/v1")
             put("id", id)
@@ -204,6 +214,7 @@ class ThemeRepository private constructor(private val context: Context) {
             put("version", "1.0.0")
             put("base", "solid")
             put("palette", palette)
+            put("platforms", org.json.JSONArray(platforms))
         }
         return importPack(pack.toString()).getOrNull()
     }
@@ -287,11 +298,20 @@ class ThemeRepository private constructor(private val context: Context) {
                     version = pack.optString("version", ""),
                     builtIn = false,
                     description = pack.optString("description", ""),
+                    platforms = parsePlatforms(pack),
                 )
             }
         }
         // 去重，pack 优先
         return result.distinctBy { it.id }
+    }
+
+    private fun parsePlatforms(pack: JSONObject): List<String> {
+        val array = pack.optJSONArray("platforms") ?: return listOf("desktop", "mobile")
+        val result = (0 until array.length()).mapNotNull { index ->
+            array.optString(index).trim().lowercase().takeIf { it == "desktop" || it == "mobile" }
+        }.distinct()
+        return result.ifEmpty { listOf("desktop", "mobile") }
     }
 
     private fun findPackFile(id: String): File? {

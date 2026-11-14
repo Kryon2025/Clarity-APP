@@ -291,12 +291,12 @@ fun AppearanceStorePage(themeRepo: ThemeRepository, onBack: () -> Unit) {
             StoreThemeCard(
                 item = item,
                 active = current.id == item.id,
-                enabled = item.palette != null && applying.isBlank(),
+                enabled = item.supportsMobile && item.palette != null && applying.isBlank(),
                 onApply = {
                     val p = item.palette ?: return@StoreThemeCard
                     scope.launch {
                         applying = item.id
-                        themeRepo.importPaletteTheme(item.id, item.name, item.description, p)
+                        themeRepo.importPaletteTheme(item.id, item.name, item.description, p, item.platforms.ifEmpty { listOf("desktop", "mobile") })
                         themeRepo.apply(item.id)
                         applying = ""
                     }
@@ -310,10 +310,10 @@ fun AppearanceStorePage(themeRepo: ThemeRepository, onBack: () -> Unit) {
                 Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(entry.name, color = palette.textPrimary.asCompose(), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        Text(if (entry.builtIn) "内置 · 深清" else "本地主题包", color = palette.textTertiary.asCompose(), fontSize = 8.sp)
+                        Text((if (entry.builtIn) "内置 · 深清" else "本地主题包") + " · " + entry.platformLabel, color = palette.textTertiary.asCompose(), fontSize = 8.sp)
                     }
                     if (current.id == entry.id) Text("使用中", color = palette.accent.asCompose(), fontSize = 9.sp)
-                    else TextButton(onClick = { themeRepo.apply(entry.id) }) { Text("应用", fontSize = 10.sp) }
+                    else TextButton(onClick = { themeRepo.apply(entry.id) }, enabled = entry.supportsMobile) { Text(if (entry.supportsMobile) "应用" else "仅桌面", fontSize = 10.sp) }
                 }
             }
         }
@@ -327,7 +327,10 @@ private fun StoreThemeCard(item: StoreItem, active: Boolean, enabled: Boolean, o
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(item.name, color = palette.textPrimary.asCompose(), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(item.name, color = palette.textPrimary.asCompose(), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(item.platformLabel, color = if (item.supportsMobile) palette.success.asCompose() else palette.textTertiary.asCompose(), fontSize = 8.sp, modifier = Modifier.padding(start = 6.dp))
+                    }
                     Text(item.author + " · v" + item.version, color = palette.textTertiary.asCompose(), fontSize = 8.sp)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -340,7 +343,7 @@ private fun StoreThemeCard(item: StoreItem, active: Boolean, enabled: Boolean, o
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("★ " + item.rating + " · " + item.downloads + " 次", color = palette.textTertiary.asCompose(), fontSize = 8.sp, modifier = Modifier.weight(1f))
                 if (active) Text("使用中", color = palette.accent.asCompose(), fontSize = 9.sp)
-                else Button(onClick = onApply, enabled = enabled, shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) { Text("应用", fontSize = 10.sp) }
+                else Button(onClick = onApply, enabled = enabled, shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)) { Text(if (item.supportsMobile) "应用" else "仅桌面", fontSize = 10.sp) }
             }
         }
     }
@@ -385,9 +388,9 @@ fun PluginStorePage(repo: AppRepository, bridge: com.shenqing.mobile.data.Bridge
                     Row {
                         Column(Modifier.weight(1f)) {
                             Text(item.name, color = palette.textPrimary.asCompose(), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            Text(item.author + " · v" + item.version, color = palette.textTertiary.asCompose(), fontSize = 8.sp)
+                            Text(item.author + " · v" + item.version + " · " + item.platformLabel, color = palette.textTertiary.asCompose(), fontSize = 8.sp)
                         }
-                        Text(if (plugin != null) "桌面已安装" else "桌面插件", color = if (plugin != null) palette.success.asCompose() else palette.textTertiary.asCompose(), fontSize = 8.sp)
+                        Text(if (plugin != null) "桌面已安装" else if (item.supportsMobile) "手机可读" else "桌面插件", color = if (plugin != null) palette.success.asCompose() else palette.textTertiary.asCompose(), fontSize = 8.sp)
                     }
                     Text(item.summary, color = palette.textSecondary.asCompose(), fontSize = 9.sp, modifier = Modifier.padding(top = 5.dp))
                     plugin?.metrics?.take(3)?.forEach { metric ->
@@ -498,7 +501,7 @@ private fun colorOf(value: String?): Color = runCatching {
 }.getOrDefault(Color.Gray)
 
 private fun fallbackPlugins(): List<StoreItem> = listOf(
-    StoreItem("com.shenqing.aichat", "plugin", "AI 沟通", "Clarity Studio", "把桌面 AI 对话与插件工作区带到手机", description = "通过局域网桥接读取空间、统计、插件 mobile 指标与主题包。", version = "1.0.0"),
-    StoreItem("com.shenqing.tomatodo", "plugin", "番茄同步", "Clarity Studio", "番茄ToDo 专注历史与今日统计", description = "桌面插件安装后，手机读取 mobile 指标。", version = "1.0.0"),
-    StoreItem("com.shenqing.muyu", "plugin", "暮语", "Clarity Studio", "桌面专注伴侣插件", description = "手机端只读 mobile 摘要。", version = "1.0.0"),
+    StoreItem("com.shenqing.aichat", "plugin", "AI 沟通", "Clarity Studio", "把桌面 AI 对话与插件工作区带到手机", description = "通过局域网桥接读取空间、统计、插件 mobile 指标与主题包。", version = "1.0.0", platforms = listOf("desktop", "mobile")),
+    StoreItem("com.shenqing.tomatodo", "plugin", "番茄同步", "Clarity Studio", "番茄ToDo 专注历史与今日统计", description = "桌面插件安装后，手机读取 mobile 指标。", version = "1.0.0", platforms = listOf("desktop", "mobile")),
+    StoreItem("com.shenqing.muyu", "plugin", "暮语", "Clarity Studio", "桌面专注伴侣插件", description = "手机端只读 mobile 摘要。", version = "1.0.0", platforms = listOf("desktop")),
 )

@@ -49,6 +49,15 @@ def load_pack(path: Path) -> dict:
         for key in PALETTE_KEYS:
             if not palette.get(key) and is_hex(colors.get(key)):
                 palette[key] = str(colors[key])
+    platforms = data.get("platforms")
+    if platforms is not None and not isinstance(platforms, list):
+        raise SystemExit("platforms 必须是数组，例如 [\"desktop\", \"mobile\"]")
+    if isinstance(platforms, list):
+        platforms = [str(item).strip().lower() for item in platforms if str(item).strip().lower() in ("desktop", "mobile")]
+        if platforms and "desktop" not in platforms:
+            raise SystemExit("该主题只声明了手机端（platforms 不含 desktop），不能装到桌面")
+    else:
+        platforms = ["desktop"]
     missing = [key for key in PALETTE_KEYS if not is_hex(palette.get(key))]
     if missing:
         raise SystemExit("主题包缺少合法的 palette 字段：" + "、".join(missing))
@@ -57,6 +66,7 @@ def load_pack(path: Path) -> dict:
         "name": str(data.get("name") or theme_id)[:40],
         "description": str(data.get("description") or "")[:200],
         "palette": {key: palette[key] for key in PALETTE_KEYS},
+        "platforms": platforms,
     }
 
 
@@ -74,6 +84,7 @@ def main(argv: list[str] | None = None) -> int:
 
     pack = load_pack(args.pack)
     print("主题包：" + pack["name"] + " (" + pack["id"] + ")")
+    print("platforms：" + "、".join(pack["platforms"]))
     print("palette：" + json.dumps(pack["palette"], ensure_ascii=False))
     if args.check:
         print("校验通过")

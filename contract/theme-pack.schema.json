@@ -56,6 +56,17 @@
     },
     "desktop": {
       "type": "object"
+    },
+    "platforms": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "desktop",
+          "mobile"
+        ]
+      },
+      "uniqueItems": true,
+      "description": "适配端；缺省按双端兼容"
     }
   },
   "additionalProperties": true

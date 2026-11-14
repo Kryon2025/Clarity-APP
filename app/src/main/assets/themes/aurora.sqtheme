@@ -40,5 +40,9 @@
     "accent": "#8B5CF6",
     "cardBg": "#0D1A2B",
     "textPrimary": "#F2F7FF"
-  }
+  },
+  "platforms": [
+    "desktop",
+    "mobile"
+  ]
 }
