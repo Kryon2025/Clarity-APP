@@ -99,59 +99,46 @@ class FocusService : Service() {
     }
 
     private fun createChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager = getSystemService(NotificationManager::class.java)
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "专注进行中",
-                NotificationManager.IMPORTANCE_LOW,
-            ).apply {
-                description = "深清专注倒计时与结束提醒"
-                setShowBadge(false)
-            }
-            manager.createNotificationChannel(channel)
-        }
+        LiveNotification.ensureChannels(this)
     }
 
     private fun buildNotification(): Notification {
         val active = repo.active.value
+        val remaining = active?.remainingSeconds() ?: 0L
+        val total = active?.totalSeconds?.coerceAtLeast(1L) ?: 1L
         val title = if (active == null) "深清" else active.tier.label + " · " + active.name
-        val text = if (active == null) "准备开始" else formatTime(active.remainingSeconds())
+        val text = if (active == null) "准备开始" else formatTime(remaining)
         val openIntent = PendingIntent.getActivity(
             this, 1,
             Intent(this, FocusActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setContentIntent(openIntent)
-            .setCategory(NotificationCompat.CATEGORY_STOPWATCH)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        val actions = mutableListOf<Pair<String, PendingIntent>>()
         if (active != null && active.tier.canPause) {
             val pauseLabel = if (active.paused) "继续" else "暂停"
             val action = if (active.paused) ACTION_RESUME else ACTION_PAUSE
-            builder.addAction(
-                0, pauseLabel,
-                PendingIntent.getService(
-                    this, 2, Intent(this, FocusService::class.java).setAction(action),
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-                ),
+            actions += pauseLabel to PendingIntent.getService(
+                this, 2, Intent(this, FocusService::class.java).setAction(action),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
         }
         if (active != null && !active.tier.locked) {
-            builder.addAction(
-                0, "结束",
-                PendingIntent.getService(
-                    this, 3, Intent(this, FocusService::class.java).setAction(ACTION_STOP),
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-                ),
+            actions += "结束" to PendingIntent.getService(
+                this, 3, Intent(this, FocusService::class.java).setAction(ACTION_STOP),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
         }
-        return builder.build()
+        return LiveNotification.build(
+            context = this,
+            channel = LiveNotification.CHANNEL_FOCUS,
+            title = title,
+            text = text,
+            progress = (total - remaining).toInt().coerceIn(0, total.toInt()),
+            max = total.toInt(),
+            shortCriticalText = title + " " + formatTime(remaining),
+            contentIntent = openIntent,
+            actions = actions,
+        )
     }
 
     private fun updateNotification(active: com.shenqing.mobile.data.ActiveSession) {

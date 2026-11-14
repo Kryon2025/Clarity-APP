@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -47,8 +48,10 @@ import com.shenqing.mobile.data.Space
 import com.shenqing.mobile.data.ThemeRepository
 import com.shenqing.mobile.data.Tier
 import com.shenqing.mobile.service.FocusAccessibilityService
+import com.shenqing.mobile.service.OppoZen
 import com.shenqing.mobile.ui.asCompose
 import com.shenqing.mobile.ui.screens.PluginsScreen
+import com.shenqing.mobile.ui.screens.PomodoroScreen
 import com.shenqing.mobile.ui.screens.SettingsScreen
 import com.shenqing.mobile.ui.screens.SpacesScreen
 import com.shenqing.mobile.ui.screens.StatsScreen
@@ -62,6 +65,7 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private var quickSpaceId by mutableStateOf<String?>(null)
     private var quickMinutes by mutableIntStateOf(0)
+    private var startTab by mutableIntStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,6 +76,7 @@ class MainActivity : ComponentActivity() {
                 // 保留进行中的会话，不强制跳转；用户可从首页卡片回到专注。
             }
         }
+        if (intent?.getBooleanExtra("open_pomodoro", false) == true) startTab = 1
         quickSpaceId = intent?.getStringExtra("space_id")
         quickMinutes = intent?.getIntExtra("minutes", 0) ?: 0
         if (intent?.action == ACTION_QUICK_FOCUS) {
@@ -87,6 +92,7 @@ class MainActivity : ComponentActivity() {
                     themeRepo = themeRepo,
                     quickSpaceId = quickSpaceId,
                     quickMinutes = quickMinutes,
+                    initialTab = startTab,
                     onQuickConsumed = { quickSpaceId = null },
                 )
             }
@@ -95,6 +101,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (intent.getBooleanExtra("open_pomodoro", false)) startTab = 1
         if (intent.action == ACTION_QUICK_FOCUS) {
             quickSpaceId = intent.getStringExtra("space_id") ?: AppRepository.get(this).settings.value.quickFocusSpaceId
             quickMinutes = intent.getIntExtra("minutes", 0).takeIf { it > 0 } ?: 25
@@ -112,15 +119,26 @@ private fun MainScreen(
     themeRepo: ThemeRepository,
     quickSpaceId: String?,
     quickMinutes: Int,
+    initialTab: Int,
     onQuickConsumed: () -> Unit,
 ) {
     val palette = LocalPalette.current
     val context = androidx.compose.ui.platform.LocalContext.current
-    var tab by remember { mutableIntStateOf(0) }
+    var tab by remember(initialTab) { mutableIntStateOf(initialTab) }
     var blockedSpace by remember { mutableStateOf<Space?>(null) }
+    var zenNotice by remember { mutableStateOf<String?>(null) }
     val notificationPermission = rememberLauncherForActivityResultContract()
 
     fun startFocus(space: Space, minutes: Int) {
+        if (space.tier.locked && repo.settings.value.oppoZenEnabled && OppoZen.available(context)) {
+            val result = OppoZen.start(context, minutes)
+            if (result.launched) {
+                repo.startFocus(space, result.minutes.takeIf { it > 0 } ?: minutes)
+                zenNotice = result.message + "\n超禅期间由禅定空间接管锁机；深清仍会记录本次专注。"
+                return
+            }
+            zenNotice = result.message
+        }
         if (space.tier.locked && !FocusAccessibilityService.isEnabled(context)) {
             blockedSpace = space
             return
@@ -164,11 +182,12 @@ private fun MainScreen(
                     onOpenFocus = {
                         context.startActivity(Intent(context, FocusActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     },
-                    onOpenSettings = { tab = 3 },
-                    onOpenStats = { tab = 1 },
+                    onOpenSettings = { tab = 4 },
+                    onOpenStats = { tab = 2 },
                 )
-                1 -> StatsScreen(repo)
-                2 -> PluginsScreen(repo, themeRepo, onOpenSettings = { tab = 3 })
+                1 -> PomodoroScreen(repo)
+                2 -> StatsScreen(repo)
+                3 -> PluginsScreen(repo, themeRepo, onOpenSettings = { tab = 4 })
                 else -> SettingsScreen(repo, themeRepo)
             }
         }
@@ -179,9 +198,10 @@ private fun MainScreen(
         ) {
             val items = listOf(
                 Triple("空间", Icons.Outlined.Home, 0),
-                Triple("数据", Icons.Outlined.BarChart, 1),
-                Triple("插件", Icons.Outlined.Extension, 2),
-                Triple("设置", Icons.Outlined.Settings, 3),
+                Triple("清番", Icons.Outlined.Timer, 1),
+                Triple("数据", Icons.Outlined.BarChart, 2),
+                Triple("插件", Icons.Outlined.Extension, 3),
+                Triple("设置", Icons.Outlined.Settings, 4),
             )
             items.forEach { (label, icon, index) ->
                 NavigationBarItem(
@@ -201,6 +221,14 @@ private fun MainScreen(
         }
     }
 
+    zenNotice?.let { message ->
+        AlertDialog(
+            onDismissRequest = { zenNotice = null },
+            title = { Text("OPPO 超禅") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = { zenNotice = null }) { Text("知道了") } },
+        )
+    }
     blockedSpace?.let { space ->
         AlertDialog(
             onDismissRequest = { blockedSpace = null },

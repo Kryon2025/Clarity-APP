@@ -6,6 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.view.accessibility.AccessibilityNodeInfo
 import android.provider.Settings
 import android.view.Gravity
 import android.view.WindowManager
@@ -28,6 +31,7 @@ class FocusAccessibilityService : AccessibilityService(), LockOverlayHost {
     private var observeJob: Job? = null
     private var lastLaunchAt = 0L
     private var launcherPackage: String? = null
+    private var zenAutomationPackage: String? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -45,6 +49,11 @@ class FocusAccessibilityService : AccessibilityService(), LockOverlayHost {
         val active = repo.active.value ?: run { hideOverlay(); return }
         if (active.tier == Tier.LIGHT) return
         val pkg = event?.packageName?.toString() ?: return
+        if (pkg == OppoZen.activePackage || pkg == zenAutomationPackage || OppoZen.isZenPackage(pkg)) {
+            // 禅定空间由 OPPO 自己锁机，深清不要盖住它。
+            hideOverlay()
+            return
+        }
         if (pkg == packageName) {
             hideOverlay()
             return
@@ -115,6 +124,42 @@ class FocusAccessibilityService : AccessibilityService(), LockOverlayHost {
             (getSystemService(Context.WINDOW_SERVICE) as WindowManager).addView(view, params)
             overlayView = view
         }
+    }
+
+    fun startZenAutomation(pkg: String, minutes: Int) {
+        zenAutomationPackage = pkg
+        val handler = Handler(Looper.getMainLooper())
+        handler.postDelayed({ clickAny(listOf("超禅", "Deep Zen", "深禅")) }, 1200L)
+        handler.postDelayed({
+            clickAny(
+                listOf(
+                    "$minutes 分钟", "${minutes}分钟", "$minutes min", "${minutes}分", minutes.toString(),
+                )
+            )
+        }, 2600L)
+        handler.postDelayed({ clickAny(listOf("开始", "开启", "进入", "Start", "Begin", "确定")) }, 4000L)
+        handler.postDelayed({ zenAutomationPackage = null }, 7000L)
+    }
+
+    private fun clickAny(texts: List<String>): Boolean {
+        val root: AccessibilityNodeInfo = runCatching { rootInActiveWindow }.getOrNull() ?: return false
+        if (!root.packageName.isNullOrBlank() && root.packageName.toString() != zenAutomationPackage) return false
+        for (text in texts) {
+            val nodes = runCatching { root.findAccessibilityNodeInfosByText(text) }.getOrNull() ?: continue
+            for (node in nodes) {
+                var target: AccessibilityNodeInfo? = node
+                var depth = 0
+                while (target != null && depth < 4) {
+                    if (target.isClickable) {
+                        val clicked = runCatching { target?.performAction(AccessibilityNodeInfo.ACTION_CLICK) }.getOrDefault(false)
+                        if (clicked == true) return true
+                    }
+                    target = target?.parent
+                    depth += 1
+                }
+            }
+        }
+        return false
     }
 
     private fun launchFocusThrottled() {

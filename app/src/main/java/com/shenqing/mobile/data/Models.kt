@@ -82,6 +82,36 @@ data class Stats(
     val categories: List<Pair<String, Int>>,
 )
 
+enum class PomodoroPhase {
+    IDLE, FOCUS, SHORT_BREAK, LONG_BREAK
+}
+
+data class PomodoroState(
+    val phase: PomodoroPhase = PomodoroPhase.IDLE,
+    val running: Boolean = false,
+    val round: Int = 1,
+    val remainingSeconds: Int = 0,
+    val totalSeconds: Int = 0,
+    val endsAt: Long = 0L,
+    val workMinutes: Int = 25,
+    val shortBreakMinutes: Int = 5,
+    val longBreakMinutes: Int = 15,
+    val roundsBeforeLong: Int = 4,
+) {
+    fun remaining(now: Long = System.currentTimeMillis()): Int {
+        if (!running) return remainingSeconds.coerceAtLeast(0)
+        return ((endsAt - now) / 1000L).toInt().coerceAtLeast(0)
+    }
+
+    val phaseLabel: String
+        get() = when (phase) {
+            PomodoroPhase.IDLE -> "待开始"
+            PomodoroPhase.FOCUS -> "专注"
+            PomodoroPhase.SHORT_BREAK -> "短休息"
+            PomodoroPhase.LONG_BREAK -> "长休息"
+        }
+}
+
 data class CloudAccount(
     val url: String = "",
     val email: String = "",

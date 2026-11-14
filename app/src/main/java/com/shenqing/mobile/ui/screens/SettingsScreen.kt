@@ -28,6 +28,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -57,6 +58,7 @@ import com.shenqing.mobile.data.ThemeRepository
 import org.json.JSONObject
 import com.shenqing.mobile.service.FocusAccessibilityService
 import com.shenqing.mobile.service.LockTaskController
+import com.shenqing.mobile.service.OppoZen
 import com.shenqing.mobile.ui.AppCard
 import com.shenqing.mobile.ui.SectionHeader
 import com.shenqing.mobile.ui.asCompose
@@ -75,6 +77,7 @@ fun SettingsScreen(
     val entries by themeRepo.entries.collectAsState()
     val fontScale by repo.fontScale.collectAsState()
     val bridge by repo.bridge.collectAsState()
+    val settings by repo.settings.collectAsState()
     val cloud by repo.cloud.collectAsState()
     val cloudManager = remember { CloudSyncManager(context) }
     var cloudUrl by remember(cloud.url) { mutableStateOf(cloud.url) }
@@ -298,6 +301,20 @@ fun SettingsScreen(
         }
         item {
             SectionHeader("锁机权限", "深清/覆清需要无障碍；设备所有者可开启真 kiosk")
+            if (OppoZen.isOppoFamily()) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("OPPO 超禅锁机", color = palette.textPrimary.asCompose(), fontSize = 11.sp)
+                        Text(
+                            if (OppoZen.available(context)) "已检测到禅定空间：开始覆清/深清时优先调用超禅"
+                            else "未检测到 com.oneplus.brickmode，回退深清覆盖层",
+                            color = palette.textTertiary.asCompose(),
+                            fontSize = 8.sp,
+                        )
+                    }
+                    Switch(checked = settings.oppoZenEnabled, onCheckedChange = { repo.setOppoZen(it) })
+                }
+            }
             PermissionRow("无障碍服务", accessibility, if (accessibility) "已开启" else "必需") {
                 FocusAccessibilityService.openSettings(context)
             }

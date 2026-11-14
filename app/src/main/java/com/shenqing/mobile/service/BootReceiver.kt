@@ -14,5 +14,9 @@ class BootReceiver : BroadcastReceiver() {
             runCatching { FocusService.start(context) }
             FocusAlarmReceiver.schedule(context, active.endsAt)
         }
+        val pomodoro = repo.pomodoro.value
+        if (pomodoro.phase != com.shenqing.mobile.data.PomodoroPhase.IDLE && pomodoro.running) {
+            runCatching { PomodoroService.start(context) }
+        }
     }
 }

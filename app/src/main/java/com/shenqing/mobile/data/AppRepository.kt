@@ -40,16 +40,23 @@ class AppRepository private constructor(private val context: Context) {
     private val _stats = MutableStateFlow(computeStats(_sessions.value))
     val stats: StateFlow<Stats> = _stats
 
+    private val _pomodoro = MutableStateFlow(loadPomodoro())
+    val pomodoro: StateFlow<PomodoroState> = _pomodoro
+
     data class Settings(
         val quickFocusMinutes: Int = 25,
         val quickFocusSpaceId: String = "sp_light",
         val lastWidgetUpdate: Long = 0L,
+        val oppoZenEnabled: Boolean = true,
     )
 
     init {
         val current = _active.value
         if (current != null && !current.paused && current.endsAt <= System.currentTimeMillis()) {
             finishActive(completed = true, now = current.endsAt)
+        }
+        if (_pomodoro.value.phase != PomodoroPhase.IDLE && _pomodoro.value.running) {
+            runCatching { com.shenqing.mobile.service.PomodoroService.start(context) }
         }
     }
 
@@ -119,6 +126,7 @@ class AppRepository private constructor(private val context: Context) {
         }
         _active.value = null
         persistActive(null)
+        runCatching { com.shenqing.mobile.service.OppoZen.clearActive() }
         updateStats()
         notifyWidget()
     }
@@ -140,6 +148,160 @@ class AppRepository private constructor(private val context: Context) {
         _settings.value = Settings()
         updateStats()
         notifyWidget()
+    }
+
+    fun setOppoZen(enabled: Boolean) {
+        _settings.value = _settings.value.copy(oppoZenEnabled = enabled)
+        prefs.edit().putBoolean(KEY_OPPO_ZEN, enabled).apply()
+    }
+
+    fun startPomodoro(
+        workMinutes: Int = 25,
+        shortBreakMinutes: Int = 5,
+        longBreakMinutes: Int = 15,
+        roundsBeforeLong: Int = 4,
+    ) {
+        val work = workMinutes.coerceIn(1, 120)
+        val total = work * 60
+        val state = PomodoroState(
+            phase = PomodoroPhase.FOCUS,
+            running = true,
+            round = 1,
+            remainingSeconds = total,
+            totalSeconds = total,
+            endsAt = System.currentTimeMillis() + total * 1000L,
+            workMinutes = work,
+            shortBreakMinutes = shortBreakMinutes.coerceIn(1, 60),
+            longBreakMinutes = longBreakMinutes.coerceIn(1, 120),
+            roundsBeforeLong = roundsBeforeLong.coerceIn(1, 12),
+        )
+        _pomodoro.value = state
+        persistPomodoro(state)
+        runCatching { com.shenqing.mobile.service.PomodoroService.start(context) }
+    }
+
+    fun pausePomodoro(notifyService: Boolean = true) {
+        val state = _pomodoro.value
+        if (state.phase == PomodoroPhase.IDLE || !state.running) return
+        val paused = state.copy(running = false, remainingSeconds = state.remaining(), endsAt = 0L)
+        _pomodoro.value = paused
+        persistPomodoro(paused)
+        if (notifyService) runCatching { com.shenqing.mobile.service.PomodoroService.pause(context) }
+    }
+
+    fun resumePomodoro(notifyService: Boolean = true) {
+        val state = _pomodoro.value
+        if (state.phase == PomodoroPhase.IDLE || state.running) return
+        val remaining = state.remainingSeconds.coerceAtLeast(1)
+        val resumed = state.copy(
+            running = true,
+            remainingSeconds = remaining,
+            endsAt = System.currentTimeMillis() + remaining * 1000L,
+        )
+        _pomodoro.value = resumed
+        persistPomodoro(resumed)
+        if (notifyService) runCatching { com.shenqing.mobile.service.PomodoroService.start(context) }
+    }
+
+    fun tickPomodoro() {
+        var state = _pomodoro.value
+        if (state.phase == PomodoroPhase.IDLE || !state.running) return
+        val remaining = state.remaining()
+        if (remaining > 0) {
+            if (state.remainingSeconds != remaining) {
+                state = state.copy(remainingSeconds = remaining)
+                _pomodoro.value = state
+                persistPomodoro(state)
+            }
+            return
+        }
+        state = when (state.phase) {
+            PomodoroPhase.FOCUS -> {
+                recordPomodoroSession(state.workMinutes)
+                val long = state.round % state.roundsBeforeLong == 0
+                val minutes = if (long) state.longBreakMinutes else state.shortBreakMinutes
+                state.copy(
+                    phase = if (long) PomodoroPhase.LONG_BREAK else PomodoroPhase.SHORT_BREAK,
+                    running = true,
+                    remainingSeconds = minutes * 60,
+                    totalSeconds = minutes * 60,
+                    endsAt = System.currentTimeMillis() + minutes * 60_000L,
+                )
+            }
+            PomodoroPhase.SHORT_BREAK, PomodoroPhase.LONG_BREAK -> {
+                val minutes = state.workMinutes
+                state.copy(
+                    phase = PomodoroPhase.FOCUS,
+                    running = true,
+                    round = state.round + 1,
+                    remainingSeconds = minutes * 60,
+                    totalSeconds = minutes * 60,
+                    endsAt = System.currentTimeMillis() + minutes * 60_000L,
+                )
+            }
+            PomodoroPhase.IDLE -> state
+        }
+        _pomodoro.value = state
+        persistPomodoro(state)
+        notifyWidget()
+    }
+
+    fun skipPomodoro(notifyService: Boolean = true) {
+        var state = _pomodoro.value
+        if (state.phase == PomodoroPhase.IDLE) return
+        if (state.phase == PomodoroPhase.FOCUS) {
+            val long = state.round % state.roundsBeforeLong == 0
+            val minutes = if (long) state.longBreakMinutes else state.shortBreakMinutes
+            state = state.copy(
+                phase = if (long) PomodoroPhase.LONG_BREAK else PomodoroPhase.SHORT_BREAK,
+                running = true,
+                remainingSeconds = minutes * 60,
+                totalSeconds = minutes * 60,
+                endsAt = System.currentTimeMillis() + minutes * 60_000L,
+            )
+        } else {
+            state = state.copy(
+                phase = PomodoroPhase.FOCUS,
+                running = true,
+                round = state.round + 1,
+                remainingSeconds = state.workMinutes * 60,
+                totalSeconds = state.workMinutes * 60,
+                endsAt = System.currentTimeMillis() + state.workMinutes * 60_000L,
+            )
+        }
+        _pomodoro.value = state
+        persistPomodoro(state)
+        if (notifyService) runCatching { com.shenqing.mobile.service.PomodoroService.start(context) }
+    }
+
+    fun clearPomodoro() {
+        _pomodoro.value = PomodoroState()
+        persistPomodoro(null)
+    }
+
+    fun stopPomodoro(notifyService: Boolean = true) {
+        clearPomodoro()
+        if (notifyService) runCatching { com.shenqing.mobile.service.PomodoroService.stop(context) }
+    }
+
+    private fun recordPomodoroSession(minutes: Int) {
+        if (minutes <= 0) return
+        val now = System.currentTimeMillis()
+        val session = FocusSession(
+            id = "s_" + UUID.randomUUID().toString().take(8),
+            spaceId = "pomodoro",
+            name = "清番",
+            tier = Tier.LIGHT,
+            plannedMinutes = minutes,
+            minutes = minutes,
+            completed = true,
+            startedAt = now - minutes * 60_000L,
+            endedAt = now,
+        )
+        val updated = (listOf(session) + _sessions.value).take(300)
+        _sessions.value = updated
+        persistSessions(updated)
+        updateStats()
     }
 
     fun setTheme(id: String) {
@@ -345,7 +507,42 @@ class AppRepository private constructor(private val context: Context) {
         quickFocusMinutes = prefs.getInt(KEY_QUICK_MINUTES, 25),
         quickFocusSpaceId = prefs.getString(KEY_QUICK_SPACE, "sp_light") ?: "sp_light",
         lastWidgetUpdate = prefs.getLong(KEY_WIDGET_UPDATE, 0),
+        oppoZenEnabled = prefs.getBoolean(KEY_OPPO_ZEN, true),
     )
+
+    private fun loadPomodoro(): PomodoroState {
+        val raw = prefs.getString(KEY_POMODORO, "") ?: return PomodoroState()
+        return runCatching {
+            val json = JSONObject(raw)
+            PomodoroState(
+                phase = runCatching { PomodoroPhase.valueOf(json.optString("phase", "IDLE")) }.getOrDefault(PomodoroPhase.IDLE),
+                running = json.optBoolean("running", false),
+                round = json.optInt("round", 1),
+                remainingSeconds = json.optInt("remaining", 0),
+                totalSeconds = json.optInt("total", 0),
+                endsAt = json.optLong("endsAt", 0),
+                workMinutes = json.optInt("work", 25),
+                shortBreakMinutes = json.optInt("short", 5),
+                longBreakMinutes = json.optInt("long", 15),
+                roundsBeforeLong = json.optInt("rounds", 4),
+            )
+        }.getOrDefault(PomodoroState())
+    }
+
+    private fun persistPomodoro(state: PomodoroState?) {
+        if (state == null || state.phase == PomodoroPhase.IDLE) {
+            prefs.edit().remove(KEY_POMODORO).apply()
+            return
+        }
+        val json = JSONObject().apply {
+            put("phase", state.phase.name); put("running", state.running); put("round", state.round)
+            put("remaining", state.remainingSeconds); put("total", state.totalSeconds)
+            put("endsAt", state.endsAt); put("work", state.workMinutes)
+            put("short", state.shortBreakMinutes); put("long", state.longBreakMinutes)
+            put("rounds", state.roundsBeforeLong)
+        }
+        prefs.edit().putString(KEY_POMODORO, json.toString()).apply()
+    }
 
     private fun loadCloud(): CloudAccount = CloudAccount(
         url = prefs.getString(KEY_CLOUD_URL, "") ?: "",
@@ -384,6 +581,8 @@ class AppRepository private constructor(private val context: Context) {
         private const val KEY_CLOUD_REVISION = "cloud_revision"
         private const val KEY_CLOUD_LAST_AT = "cloud_last_at"
         private const val KEY_CLOUD_DEVICE = "cloud_device"
+        private const val KEY_OPPO_ZEN = "oppo_zen"
+        private const val KEY_POMODORO = "pomodoro"
 
         val DEFAULT_BLOCKED = setOf(
             "com.tencent.mm", "com.ss.android.ugc.aweme", "com.xingin.xhs",
