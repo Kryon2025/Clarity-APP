@@ -45,13 +45,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationManagerCompat
 import com.shenqing.mobile.data.AppRepository
 import com.shenqing.mobile.data.BridgeClient
+import com.shenqing.mobile.data.CloudSyncManager
 import com.shenqing.mobile.data.BridgeSettings
 import com.shenqing.mobile.data.ThemeRepository
+import org.json.JSONObject
 import com.shenqing.mobile.service.FocusAccessibilityService
 import com.shenqing.mobile.service.LockTaskController
 import com.shenqing.mobile.ui.AppCard
@@ -72,6 +75,12 @@ fun SettingsScreen(
     val entries by themeRepo.entries.collectAsState()
     val fontScale by repo.fontScale.collectAsState()
     val bridge by repo.bridge.collectAsState()
+    val cloud by repo.cloud.collectAsState()
+    val cloudManager = remember { CloudSyncManager(context) }
+    var cloudUrl by remember(cloud.url) { mutableStateOf(cloud.url) }
+    var cloudEmail by remember(cloud.email) { mutableStateOf(cloud.email) }
+    var cloudPassword by remember { mutableStateOf("") }
+    var cloudNotice by remember { mutableStateOf("") }
     var slider by remember(fontScale) { mutableFloatStateOf(fontScale * 100f) }
     var host by remember(bridge.host) { mutableStateOf(bridge.host) }
     var port by remember(bridge.port) { mutableStateOf(bridge.port.toString()) }
@@ -179,6 +188,111 @@ fun SettingsScreen(
                         }
                     }
                     Text("电脑端启用「AI 沟通」后，把状态摘要里的 shenqing://pair?… 整串粘到地址栏。", color = palette.textTertiary.asCompose(), fontSize = 8.sp, modifier = Modifier.padding(top = 8.dp))
+                }
+            }
+        }
+        item {
+            SectionHeader("账户同步", "与电脑共用深清商店账号 · v0.20 快照")
+            AppCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp)) {
+                    Text(
+                        if (cloud.loggedIn) "已登录 · " + cloud.email else "未登录 · 可同步主题与字号",
+                        color = if (cloud.loggedIn) palette.success.asCompose() else palette.textSecondary.asCompose(),
+                        fontSize = 10.sp,
+                    )
+                    if (cloud.lastAt.isNotBlank()) {
+                        Text("上次同步：" + cloud.lastAt, color = palette.textTertiary.asCompose(), fontSize = 8.sp)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = cloudUrl, onValueChange = { cloudUrl = it },
+                        label = { Text("商店服务器地址", fontSize = 9.sp) },
+                        modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    )
+                    if (!cloud.loggedIn) {
+                        OutlinedTextField(
+                            value = cloudEmail, onValueChange = { cloudEmail = it },
+                            label = { Text("登录邮箱", fontSize = 9.sp) },
+                            modifier = Modifier.fillMaxWidth(), singleLine = true,
+                        )
+                        OutlinedTextField(
+                            value = cloudPassword, onValueChange = { cloudPassword = it },
+                            label = { Text("密码（只用于登录，不保存）", fontSize = 9.sp) },
+                            modifier = Modifier.fillMaxWidth(), singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        if (!cloud.loggedIn) {
+                            Button(
+                                onClick = {
+                                    repo.updateCloud(repo.cloud.value.copy(url = cloudUrl.trim(), email = cloudEmail.trim()))
+                                    scope.launch { cloudManager.login(cloudUrl, cloudEmail, cloudPassword); cloudPassword = "" }
+                                },
+                                enabled = !cloud.busy,
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = palette.accent.asCompose(), contentColor = palette.onAccent.asCompose()),
+                            ) { Text(if (cloud.busy) "登录中…" else "登录", fontSize = 11.sp) }
+                        } else {
+                            Button(
+                                onClick = { scope.launch { cloudManager.syncNow() } },
+                                enabled = !cloud.busy,
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = palette.accent.asCompose(), contentColor = palette.onAccent.asCompose()),
+                            ) { Text(if (cloud.busy) "同步中…" else "立即同步", fontSize = 11.sp) }
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                if (bridge.host.isBlank()) {
+                                    cloudNotice = "先连接电脑桥接，才能读取桌面配置"
+                                } else {
+                                    scope.launch {
+                                        try {
+                                            val data = BridgeClient(bridge).settings()
+                                            val remoteCloud = data.optJSONObject("cloud")
+                                            cloudUrl = remoteCloud?.optString("url", cloudUrl)?.ifBlank { cloudUrl } ?: cloudUrl
+                                            cloudEmail = remoteCloud?.optString("email", cloudEmail)?.ifBlank { cloudEmail } ?: cloudEmail
+                                            repo.updateCloud(repo.cloud.value.copy(url = cloudUrl, email = cloudEmail))
+                                            val custom = data.optJSONArray("customThemes")
+                                            if (custom != null) {
+                                                for (i in 0 until custom.length()) {
+                                                    val item = custom.optJSONObject(i) ?: continue
+                                                    val paletteObj = item.optJSONObject("palette") ?: continue
+                                                    themeRepo.importPaletteTheme(
+                                                        item.optString("id"),
+                                                        item.optString("name", item.optString("id")),
+                                                        item.optString("description", ""),
+                                                        paletteObj,
+                                                    )
+                                                }
+                                            }
+                                            val mode = data.optString("themeMode", "solid")
+                                            if (mode.startsWith("custom:")) themeRepo.apply(mode.removePrefix("custom:"))
+                                            else if (mode in listOf("solid", "light", "glass", "ocean")) themeRepo.apply(mode)
+                                            repo.setFontScale(data.optDouble("fontScale", 1.0).toFloat())
+                                            cloudNotice = "已读取电脑端主题 / 字号 / 同步地址"
+                                        } catch (e: Exception) {
+                                            cloudNotice = e.message ?: "读取桌面配置失败"
+                                        }
+                                    }
+                                }
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                        ) { Text("从电脑读取配置", fontSize = 10.sp) }
+                    }
+                    if (cloud.loggedIn) {
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { scope.launch { cloudManager.pull() } }, enabled = !cloud.busy, shape = RoundedCornerShape(14.dp)) { Text("从云端拉取", fontSize = 10.sp) }
+                            OutlinedButton(onClick = { scope.launch { cloudManager.push() } }, enabled = !cloud.busy, shape = RoundedCornerShape(14.dp)) { Text("上传手机设置", fontSize = 10.sp) }
+                            TextButton(onClick = { cloudManager.logout() }) { Text("退出", fontSize = 10.sp, color = palette.textTertiary.asCompose()) }
+                        }
+                    }
+                    if (cloud.status.isNotBlank()) Text(cloud.status, color = palette.accent.asCompose(), fontSize = 8.sp, modifier = Modifier.padding(top = 6.dp))
+                    if (cloud.error.isNotBlank()) Text("错误：" + cloud.error, color = palette.danger.asCompose(), fontSize = 8.sp)
+                    if (cloudNotice.isNotBlank()) Text(cloudNotice, color = palette.textTertiary.asCompose(), fontSize = 8.sp)
+                    Text("只同步主题 / 字号 / custom_themes；不会覆盖电脑的空间与统计。密码不会保存。", color = palette.textTertiary.asCompose(), fontSize = 8.sp, modifier = Modifier.padding(top = 6.dp))
                 }
             }
         }

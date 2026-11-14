@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shenqing.local/mobile/settings.schema.json",
+  "title": "深清手机端可读的桌面设置（/settings）",
+  "type": "object",
+  "required": [
+    "schema",
+    "themeMode",
+    "fontScale",
+    "cloud"
+  ],
+  "properties": {
+    "schema": {
+      "const": "shenqing.settings/v1"
+    },
+    "themeMode": {
+      "type": "string"
+    },
+    "fontScale": {
+      "type": "number",
+      "minimum": 0.8,
+      "maximum": 1.4
+    },
+    "fontFamily": {
+      "type": "string"
+    },
+    "navMode": {
+      "type": "string"
+    },
+    "language": {
+      "type": "string"
+    },
+    "storeCatalogUrl": {
+      "type": "string"
+    },
+    "cloud": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "loggedIn": {
+          "type": "boolean"
+        },
+        "lastAt": {
+          "type": "string"
+        },
+        "device": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "customThemes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "palette": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

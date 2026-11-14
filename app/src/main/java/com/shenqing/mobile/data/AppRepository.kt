@@ -34,6 +34,9 @@ class AppRepository private constructor(private val context: Context) {
     private val _bridge = MutableStateFlow(loadBridge())
     val bridge: StateFlow<BridgeSettings> = _bridge
 
+    private val _cloud = MutableStateFlow(loadCloud())
+    val cloud: StateFlow<CloudAccount> = _cloud
+
     private val _stats = MutableStateFlow(computeStats(_sessions.value))
     val stats: StateFlow<Stats> = _stats
 
@@ -133,6 +136,7 @@ class AppRepository private constructor(private val context: Context) {
         _themeId.value = "solid"
         _fontScale.value = 1f
         _bridge.value = BridgeSettings()
+        _cloud.value = CloudAccount()
         _settings.value = Settings()
         updateStats()
         notifyWidget()
@@ -157,6 +161,27 @@ class AppRepository private constructor(private val context: Context) {
             .putInt(KEY_BRIDGE_PORT, settings.port)
             .putString(KEY_BRIDGE_TOKEN, settings.token)
             .apply()
+    }
+
+    fun updateCloud(account: CloudAccount) {
+        _cloud.value = account
+        prefs.edit()
+            .putString(KEY_CLOUD_URL, account.url)
+            .putString(KEY_CLOUD_EMAIL, account.email)
+            .putString(KEY_CLOUD_TOKEN, account.token)
+            .putInt(KEY_CLOUD_REVISION, account.revision)
+            .putString(KEY_CLOUD_LAST_AT, account.lastAt)
+            .putString(KEY_CLOUD_DEVICE, account.device)
+            .apply()
+    }
+
+    fun cloudBusy(busy: Boolean, status: String = "", error: String = "") {
+        _cloud.value = _cloud.value.copy(busy = busy, status = status, error = error)
+    }
+
+    fun cloudLoggedOut() {
+        _cloud.value = _cloud.value.copy(token = "", revision = 0, busy = false, status = "", error = "")
+        prefs.edit().putString(KEY_CLOUD_TOKEN, "").putInt(KEY_CLOUD_REVISION, 0).apply()
     }
 
     fun setBridgeConnected(connected: Boolean, error: String = "", name: String = "", version: String = "") {
@@ -322,6 +347,15 @@ class AppRepository private constructor(private val context: Context) {
         lastWidgetUpdate = prefs.getLong(KEY_WIDGET_UPDATE, 0),
     )
 
+    private fun loadCloud(): CloudAccount = CloudAccount(
+        url = prefs.getString(KEY_CLOUD_URL, "") ?: "",
+        email = prefs.getString(KEY_CLOUD_EMAIL, "") ?: "",
+        token = prefs.getString(KEY_CLOUD_TOKEN, "") ?: "",
+        revision = prefs.getInt(KEY_CLOUD_REVISION, 0),
+        lastAt = prefs.getString(KEY_CLOUD_LAST_AT, "") ?: "",
+        device = prefs.getString(KEY_CLOUD_DEVICE, "") ?: "",
+    )
+
     private fun loadBridge(): BridgeSettings = BridgeSettings(
         host = prefs.getString(KEY_BRIDGE_HOST, "") ?: "",
         port = prefs.getInt(KEY_BRIDGE_PORT, 17777),
@@ -344,6 +378,12 @@ class AppRepository private constructor(private val context: Context) {
         private const val KEY_QUICK_SPACE = "quick_space"
         private const val KEY_QUICK_MINUTES = "quick_minutes"
         private const val KEY_WIDGET_UPDATE = "widget_update"
+        private const val KEY_CLOUD_URL = "cloud_url"
+        private const val KEY_CLOUD_EMAIL = "cloud_email"
+        private const val KEY_CLOUD_TOKEN = "cloud_token"
+        private const val KEY_CLOUD_REVISION = "cloud_revision"
+        private const val KEY_CLOUD_LAST_AT = "cloud_last_at"
+        private const val KEY_CLOUD_DEVICE = "cloud_device"
 
         val DEFAULT_BLOCKED = setOf(
             "com.tencent.mm", "com.ss.android.ugc.aweme", "com.xingin.xhs",

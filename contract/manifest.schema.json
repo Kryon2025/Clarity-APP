@@ -87,7 +87,8 @@
           "theme",
           "plugins",
           "session.control",
-          "themes"
+          "themes",
+          "settings"
         ]
       }
     },

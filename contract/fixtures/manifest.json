@@ -23,7 +23,8 @@
     "theme",
     "plugins",
     "session.control",
-    "themes"
+    "themes",
+    "settings"
   ],
   "theme": {
     "modes": [
@@ -41,7 +42,8 @@
     "stats": "/shenqing/v1/stats",
     "chat": "/shenqing/v1/chat",
     "conversations": "/shenqing/v1/conversations",
-    "themes": "/shenqing/v1/themes"
+    "themes": "/shenqing/v1/themes",
+    "settings": "/shenqing/v1/settings"
   },
   "serverTime": "2026-11-14T09:30:00Z"
 }

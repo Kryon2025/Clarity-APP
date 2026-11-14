@@ -55,6 +55,24 @@
   会备份 settings.json 并写入 custom_themes，重启深清即生效；
 - 桌面已安装的自定义主题会由桥接 /themes 列出来，手机可以一键下载应用。
 
+## 账户同步（桌面 v0.20 / 服务端 /api/sync）
+
+手机端设置页新增「账户同步」，直接使用桌面同一个商店服务端和账号：
+
+- 服务器地址、邮箱、密码登录；密码只用于登录，**不保存**；
+- 「立即同步」「从云端拉取」「上传手机设置」；
+- 只合并快照里的 `settings`（theme_mode、ui_font_scale、custom_themes），
+  **保留桌面的 spaces / stats 不动**；拉取时安装桌面自定义主题并应用；
+- 上传前先拉最新 revision，409 冲突自动重拉再合并；
+- 「从电脑读取配置」通过桥接 `GET /shenqing/v1/settings` 读取桌面主题/字号/同步地址/邮箱，
+  不需要先登录（令牌不会暴露；登录仍需密码）。
+
+服务端接口与桌面 v0.20 完全一致：
+
+    POST /api/auth/login {email,password} -> {token}
+    GET  /api/sync -> {revision, updated_at, payload, device_name}
+    PUT  /api/sync {payload, revision, device} -> {revision} / 409 {revision}
+
 ## 目录
 
     app/src/main/java/com/shenqing/mobile/
@@ -81,7 +99,7 @@
     ./gradlew :app:assembleDebug                     # 0 error
     cd ../深清插件开发/com.shenqing.aichat && python -m unittest discover -s tests -v
 
-已验证：Android assembleDebug 成功；插件侧 23 个 Python 测试通过；主题令牌与桌面 QML 一致（79 色 × 4 + 2 列表）。
+已验证：Android assembleDebug 成功；插件侧 24 个 Python 测试通过；主题令牌与桌面 QML 一致（79 色 × 4 + 2 列表）。
 未在模拟器/真机上启动验收：本机沙箱会清理后台模拟器进程；APK 构建本身通过。详见 [验收报告](<docs/验收报告.md>)。
 
 ## 深度锁机的边界（必须知道）

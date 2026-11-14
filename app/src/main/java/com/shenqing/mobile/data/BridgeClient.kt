@@ -25,6 +25,10 @@ class BridgeClient(private val settings: BridgeSettings) {
         request("/shenqing/v1/manifest") ?: throw BridgeException("桥接没有返回清单")
     }
 
+    suspend fun settings(): JSONObject = withContext(Dispatchers.IO) {
+        request("/shenqing/v1/settings") ?: throw BridgeException("桥接没有返回设置")
+    }
+
     suspend fun plugins(): List<RemotePlugin> = withContext(Dispatchers.IO) {
         val json = request("/shenqing/v1/plugins") ?: return@withContext emptyList()
         val array = json.optJSONArray("plugins") ?: return@withContext emptyList()

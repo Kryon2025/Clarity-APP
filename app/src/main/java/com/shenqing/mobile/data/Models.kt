@@ -82,6 +82,20 @@ data class Stats(
     val categories: List<Pair<String, Int>>,
 )
 
+data class CloudAccount(
+    val url: String = "",
+    val email: String = "",
+    val token: String = "",
+    val revision: Int = 0,
+    val lastAt: String = "",
+    val device: String = "",
+    val busy: Boolean = false,
+    val status: String = "",
+    val error: String = "",
+) {
+    val loggedIn: Boolean get() = token.isNotBlank()
+}
+
 data class BridgeSettings(
     val host: String = "",
     val port: Int = 17777,

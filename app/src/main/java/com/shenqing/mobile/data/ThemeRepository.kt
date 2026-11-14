@@ -164,6 +164,51 @@ class ThemeRepository private constructor(private val context: Context) {
         entry
     }
 
+    fun isBuiltIn(id: String): Boolean = id in builtInModes
+
+    fun currentThemeMode(): String = if (isBuiltIn(repo.themeId.value)) repo.themeId.value else "custom:" + repo.themeId.value
+
+    fun importPaletteTheme(id: String, name: String, description: String, palette: JSONObject): ThemeEntry? {
+        val pack = JSONObject().apply {
+            put("schema", "shenqing.theme-pack/v1")
+            put("id", id)
+            put("name", name)
+            put("description", description)
+            put("author", "桌面同步")
+            put("version", "1.0.0")
+            put("base", "solid")
+            put("palette", palette)
+        }
+        return importPack(pack.toString()).getOrNull()
+    }
+
+    /** 手机本地自定义主题 -> 桌面 custom_themes 使用的 6 键 palette 映射。 */
+    fun mobileThemesForCloud(): JSONObject {
+        val result = JSONObject()
+        entries.value.filter { !it.builtIn }.forEach { entry ->
+            val pack = packJson(entry.id) ?: return@forEach
+            val json = runCatching { JSONObject(pack) }.getOrNull() ?: return@forEach
+            val palette = json.optJSONObject("palette") ?: JSONObject()
+            val modeColors = json.optJSONObject("modes")?.optJSONObject("solid")?.optJSONObject("colors")
+            val full = JSONObject()
+            for (key in listOf("bgTop", "bgMid", "bgBottom", "accent", "cardBg", "textPrimary")) {
+                var value = palette.optString(key, "")
+                if (value.isEmpty()) value = modeColors?.optString(key, "") ?: ""
+                if (value.matches(Regex("^#[0-9A-Fa-f]{6}$"))) full.put(key, value)
+            }
+            if (full.length() == 6) {
+                result.put(entry.id, JSONObject().apply {
+                    put("name", entry.name)
+                    put("description", entry.description)
+                    put("palette", full)
+                })
+            }
+        }
+        return result
+    }
+
+    fun localThemeIds(): List<String> = entries.value.filter { !it.builtIn }.map { it.id }
+
     fun deletePack(id: String): Boolean {
         if (id in builtInModes) return false
         val file = findPackFile(id) ?: return false

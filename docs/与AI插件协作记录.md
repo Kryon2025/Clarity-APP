@@ -11,10 +11,11 @@
 
 - 契约 v1 保留：/ping、/manifest、/theme、/spaces、/stats、/chat、/conversations、/plugins、CORS、Bearer 认证。
 - 新增：
+  - GET /shenqing/v1/settings：桌面设置白名单（主题/字号/云同步地址，不含 token）；
   - GET /shenqing/v1/themes 与 /themes/{id}：返回 .sqtheme 与桌面 custom_themes；
   - plugin.json 增加 mobile 摘要/指标；桥接从 plugin_data 读取 metrics（例如番茄同步今日次数）；
   - 手机端原生插件页展示这些指标。
-- 插件侧测试：23/23 通过（20 个原有测试 + 3 个 /themes / 桌面自定义主题 / mobile metrics 测试）。
+- 插件侧测试：24/24 通过（20 个原有测试 + 3 个 /themes / 桌面自定义主题 / mobile metrics + 1 个 /settings 白名单）。
 - 主题令牌：79 色 × 4 模式 + 2 列表，插件 theme_tokens.json 与手机端 theme/tokens.json 逐字节一致。
 
 ## 3. 与桌面 0.18 主题工作的兼容
@@ -35,7 +36,7 @@
 ## 4. 验证
 
 - Android assembleDebug 成功，APK 16 MB；
-- 插件 Python 23 tests OK；
+- 插件 Python 24 tests OK；
 - 主题令牌 --check 通过；
 - 主题包校验通过。
 - 未在真机/模拟器启动：本机沙箱清理后台模拟器进程；需真机补验。
