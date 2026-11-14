@@ -42,7 +42,7 @@ jobs:
       - name: Build debug APK
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleDebug --no-daemon
+          ./gradlew :app:assembleDebug --no-daemon -PshenqingBuildId=${GITHUB_RUN_NUMBER}
 
       - name: Prepare release metadata
         id: meta

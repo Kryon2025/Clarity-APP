@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -34,17 +35,38 @@ fun AppCard(
     content: @Composable () -> Unit,
 ) {
     val palette = LocalPalette.current
+    val shape = RoundedCornerShape(VendorUi.cornerRadius())
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(22.dp))
+            .shadow(
+                14.dp,
+                shape,
+                ambientColor = Color.Black.copy(alpha = 0.35f),
+                spotColor = Color(palette.accent).copy(alpha = 0.22f),
+            )
+            .clip(shape)
+            .background(Color(palette.cardBg).copy(alpha = VendorUi.surfaceAlpha()))
             .background(
                 Brush.linearGradient(
-                    listOf(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.015f)),
+                    listOf(
+                        Color.White.copy(alpha = 0.10f),
+                        Color.Transparent,
+                        Color(palette.accent).copy(alpha = 0.04f),
+                    )
                 )
             )
-            .background(Color(palette.cardBg))
-            .border(1.dp, Color(palette.cardBorder), RoundedCornerShape(22.dp)),
-    ) { content() }
+            .border(1.dp, Brush.linearGradient(VendorUi.glassColors(palette)), shape),
+    ) {
+        Box(
+            Modifier.matchParentSize().background(
+                Brush.verticalGradient(
+                    listOf(Color.White.copy(alpha = 0.07f), Color.Transparent),
+                    endY = 140f,
+                )
+            )
+        )
+        content()
+    }
 }
 
 @Composable

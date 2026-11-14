@@ -80,11 +80,14 @@ fun SpacesScreen(
     onOpenFocus: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenStats: () -> Unit,
+    onOpenPomodoro: () -> Unit,
 ) {
     val palette = LocalPalette.current
     val stats by repo.stats.collectAsState()
     val spaces by repo.spaces.collectAsState()
     val active by repo.active.collectAsState()
+    val pomodoro by repo.pomodoro.collectAsState()
+    val settings by repo.settings.collectAsState()
     var sheetSpace by remember { mutableStateOf<Space?>(null) }
 
     LazyColumn(
@@ -144,6 +147,34 @@ fun SpacesScreen(
         }
         active?.let { session ->
             item { ActiveCard(session, palette, onOpenFocus) }
+        }
+        item {
+            SectionHeader("清番", "番茄钟 · 自定本轮番茄数")
+            AppCard(Modifier.fillMaxWidth().clickable(onClick = onOpenPomodoro)) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            if (pomodoro.phase == com.shenqing.mobile.data.PomodoroPhase.IDLE) "清番 · 番茄钟"
+                            else "清番 · " + pomodoro.phaseLabel + " · " + pomodoro.round + "/" + pomodoro.totalRounds,
+                            color = palette.textPrimary.asCompose(), fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            if (pomodoro.phase == com.shenqing.mobile.data.PomodoroPhase.IDLE)
+                                settings.pomodoroWorkMinutes.toString() + " 分钟专注 · 本轮 " + settings.pomodoroRounds + " 个番茄"
+                            else formatClock(pomodoro.remaining().toLong()) + " · " + pomodoro.totalRounds + " 个番茄",
+                            color = palette.textTertiary.asCompose(), fontSize = 9.sp,
+                        )
+                    }
+                    if (pomodoro.phase == com.shenqing.mobile.data.PomodoroPhase.IDLE) {
+                        Button(
+                            onClick = { repo.startPomodoro(settings.pomodoroWorkMinutes, totalRounds = settings.pomodoroRounds); onOpenPomodoro() },
+                            shape = RoundedCornerShape(14.dp),
+                        ) { Text("开始", fontSize = 10.sp) }
+                    } else {
+                        TextButton(onClick = onOpenPomodoro) { Text("查看", color = palette.accent.asCompose(), fontSize = 10.sp) }
+                    }
+                }
+            }
         }
         item {
             SectionHeader(

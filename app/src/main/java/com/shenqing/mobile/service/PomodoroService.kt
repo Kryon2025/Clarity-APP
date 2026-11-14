@@ -84,7 +84,7 @@ class PomodoroService : Service() {
     private fun buildNotification(state: com.shenqing.mobile.data.PomodoroState): Notification {
         val remaining = state.remaining()
         val total = state.totalSeconds.coerceAtLeast(1)
-        val title = "清番 · " + state.phaseLabel
+        val title = "清番 · " + state.phaseLabel + (if (state.phase == PomodoroPhase.IDLE) "" else " " + state.round + "/" + state.totalRounds)
         val text = if (state.phase == PomodoroPhase.IDLE) "番茄钟" else clock(remaining)
         val open = Intent(this, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)

@@ -1,6 +1,9 @@
 package com.shenqing.mobile.ui.screens
 
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.IntentFilter
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
@@ -35,13 +38,17 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +59,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import com.shenqing.mobile.BuildConfig
 import com.shenqing.mobile.R
 import com.shenqing.mobile.data.AppRepository
 import com.shenqing.mobile.data.BridgeClient
@@ -62,6 +71,8 @@ import com.shenqing.mobile.data.StoreCatalogClient
 import com.shenqing.mobile.data.StoreItem
 import com.shenqing.mobile.data.ThemeRepository
 import com.shenqing.mobile.data.UpdateChecker
+import com.shenqing.mobile.data.UpdateDownloader
+import com.shenqing.mobile.data.UpdateChannel
 import com.shenqing.mobile.data.UpdateInfo
 import com.shenqing.mobile.ui.AppCard
 import com.shenqing.mobile.ui.SectionHeader
@@ -427,30 +438,110 @@ fun PluginStorePage(repo: AppRepository, bridge: com.shenqing.mobile.data.Bridge
 }
 
 @Composable
-fun CheckUpdatePage(context: Context, onBack: () -> Unit) {
+fun CheckUpdatePage(context: Context, repo: AppRepository, onBack: () -> Unit) {
     val palette = LocalPalette.current
-    val scope = rememberCoroutineScope()
+    val settings by repo.settings.collectAsState()
     val current = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "1.0.0" }
+    var channel by remember(settings.updateChannel) { mutableStateOf(UpdateChannel.of(settings.updateChannel)) }
     var info by remember { mutableStateOf<UpdateInfo?>(null) }
     var loading by remember { mutableStateOf(false) }
+    var refresh by remember { mutableIntStateOf(0) }
+    var downloadId by remember { mutableLongStateOf(-1L) }
+    var downloadMessage by remember { mutableStateOf("") }
+    val latestDownloadId by rememberUpdatedState(downloadId)
 
-    fun check() { scope.launch { loading = true; info = UpdateChecker.check(current); loading = false } }
-    LaunchedEffect(Unit) { check() }
+    LaunchedEffect(channel, refresh) {
+        loading = true
+        info = UpdateChecker.check(current, channel, BuildConfig.BUILD_ID)
+        loading = false
+    }
+
+    DisposableEffect(Unit) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context, intent: android.content.Intent) {
+                if (intent.action == DownloadManager.ACTION_DOWNLOAD_COMPLETE) {
+                    val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
+                    if (id > 0 && id == latestDownloadId) {
+                        downloadMessage = UpdateDownloader.installDownloaded(context, id)
+                    }
+                }
+            }
+        }
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+            ContextCompat.RECEIVER_EXPORTED,
+        )
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
+    }
 
     LazyColumn(contentPadding = PaddingValues(18.dp, 12.dp, 18.dp, 110.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { SettingsBackHeader("检查更新", "GitHub Release · 当前 v" + current, onBack) }
+        item { SettingsBackHeader("检查更新", "当前 v" + current + " · build." + BuildConfig.BUILD_ID + " · " + channel.label, onBack) }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                UpdateChannel.entries.forEach { item ->
+                    if (channel == item) {
+                        Button(
+                            onClick = { channel = item; repo.setUpdateChannel(item.key) },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = palette.accent.asCompose(), contentColor = palette.onAccent.asCompose()),
+                        ) { Text(item.label, fontSize = 10.sp) }
+                    } else {
+                        OutlinedButton(
+                            onClick = { channel = item; repo.setUpdateChannel(item.key) },
+                            shape = RoundedCornerShape(14.dp),
+                        ) { Text(item.label, fontSize = 10.sp) }
+                    }
+                }
+            }
+        }
         item {
             AppCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
-                    Text(if (loading) "正在检查…" else if (info?.error?.isNotBlank() == true) "未找到可用更新" else if (info?.hasUpdate == true) "发现新版本 v" + info?.latest else "已是最新版本", color = palette.textPrimary.asCompose(), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        when {
+                            loading -> "正在检查…"
+                            info?.hasUpdate == true -> "发现新版本 v" + info?.latest
+                            info?.error?.isNotBlank() == true -> if (channel == UpdateChannel.STABLE) "暂无正式版" else "未找到预览版"
+                            else -> "已是最新版本"
+                        },
+                        color = palette.textPrimary.asCompose(), fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                    )
+                    info?.releaseType?.takeIf { it.isNotBlank() }?.let {
+                        Text("渠道：" + it + (if (info?.publishedAt?.isNotBlank() == true) " · " + info?.publishedAt else ""), color = palette.textTertiary.asCompose(), fontSize = 8.sp, modifier = Modifier.padding(top = 4.dp))
+                    }
                     info?.error?.takeIf { it.isNotBlank() }?.let { Text(it, color = palette.textTertiary.asCompose(), fontSize = 9.sp, modifier = Modifier.padding(top = 6.dp)) }
                     info?.notes?.takeIf { it.isNotBlank() }?.let { Text(it, color = palette.textSecondary.asCompose(), fontSize = 9.sp, modifier = Modifier.padding(top = 6.dp)) }
                     Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { check() }, enabled = !loading, shape = RoundedCornerShape(14.dp)) { Text("重新检查", fontSize = 10.sp) }
+                        Button(onClick = { refresh += 1 }, enabled = !loading, shape = RoundedCornerShape(14.dp)) { Text("重新检查", fontSize = 10.sp) }
+                        if (info?.hasUpdate == true && info?.assetUrl?.isNotBlank() == true) {
+                            Button(
+                                onClick = {
+                                    val target = info
+                                    if (target != null) {
+                                        if (target.assetUrl.isBlank()) {
+                                            downloadMessage = "该 Release 没有 APK 资产"
+                                        } else if (!UpdateDownloader.canInstall(context)) {
+                                            UpdateDownloader.openInstallSettings(context)
+                                            downloadMessage = "请允许深清安装未知应用后，再点一次下载"
+                                        } else {
+                                            runCatching { UpdateDownloader.enqueue(context, target) }
+                                                .onSuccess { id -> downloadId = id; downloadMessage = "开始下载，完成后自动打开系统安装器" }
+                                                .onFailure { downloadMessage = it.message ?: "无法开始下载" }
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = palette.accent.asCompose(), contentColor = palette.onAccent.asCompose()),
+                            ) { Text("下载并安装", fontSize = 10.sp) }
+                        }
                         if (info?.url?.isNotBlank() == true) {
                             OutlinedButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(info?.url))) }, shape = RoundedCornerShape(14.dp)) { Text("打开下载页", fontSize = 10.sp) }
                         }
                     }
+                    if (downloadMessage.isNotBlank()) Text(downloadMessage, color = palette.accent.asCompose(), fontSize = 9.sp, modifier = Modifier.padding(top = 6.dp))
+                    Text("预览渠道取 GitHub 预发布构建；正式版渠道只取非 prerelease 的 Release。", color = palette.textTertiary.asCompose(), fontSize = 8.sp, modifier = Modifier.padding(top = 8.dp))
                 }
             }
         }

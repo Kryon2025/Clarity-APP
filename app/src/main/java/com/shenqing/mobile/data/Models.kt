@@ -97,6 +97,7 @@ data class PomodoroState(
     val shortBreakMinutes: Int = 5,
     val longBreakMinutes: Int = 15,
     val roundsBeforeLong: Int = 4,
+    val totalRounds: Int = 4,
 ) {
     fun remaining(now: Long = System.currentTimeMillis()): Int {
         if (!running) return remainingSeconds.coerceAtLeast(0)

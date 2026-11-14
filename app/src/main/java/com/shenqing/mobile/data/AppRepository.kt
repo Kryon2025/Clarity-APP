@@ -50,6 +50,9 @@ class AppRepository private constructor(private val context: Context) {
         val oppoZenEnabled: Boolean = true,
         val profileName: String = "",
         val followSystem: Boolean = false,
+        val updateChannel: String = "preview",
+        val pomodoroWorkMinutes: Int = 25,
+        val pomodoroRounds: Int = 4,
     )
 
     init {
@@ -152,6 +155,12 @@ class AppRepository private constructor(private val context: Context) {
         notifyWidget()
     }
 
+    fun setUpdateChannel(channel: String) {
+        val value = if (channel == "stable") "stable" else "preview"
+        _settings.value = _settings.value.copy(updateChannel = value)
+        prefs.edit().putString(KEY_UPDATE_CHANNEL, value).apply()
+    }
+
     fun setFollowSystem(enabled: Boolean) {
         _settings.value = _settings.value.copy(followSystem = enabled)
         prefs.edit().putBoolean(KEY_FOLLOW_SYSTEM, enabled).apply()
@@ -175,6 +184,7 @@ class AppRepository private constructor(private val context: Context) {
         shortBreakMinutes: Int = 5,
         longBreakMinutes: Int = 15,
         roundsBeforeLong: Int = 4,
+        totalRounds: Int = 4,
     ) {
         val work = workMinutes.coerceIn(1, 120)
         val total = work * 60
@@ -189,8 +199,11 @@ class AppRepository private constructor(private val context: Context) {
             shortBreakMinutes = shortBreakMinutes.coerceIn(1, 60),
             longBreakMinutes = longBreakMinutes.coerceIn(1, 120),
             roundsBeforeLong = roundsBeforeLong.coerceIn(1, 12),
+            totalRounds = totalRounds.coerceIn(1, 12),
         )
         _pomodoro.value = state
+        _settings.value = _settings.value.copy(pomodoroWorkMinutes = work, pomodoroRounds = state.totalRounds)
+        prefs.edit().putInt(KEY_POMODORO_WORK, work).putInt(KEY_POMODORO_ROUNDS, state.totalRounds).apply()
         persistPomodoro(state)
         runCatching { com.shenqing.mobile.service.PomodoroService.start(context) }
     }
@@ -230,6 +243,13 @@ class AppRepository private constructor(private val context: Context) {
             }
             return
         }
+        if (state.phase == PomodoroPhase.FOCUS && state.round >= state.totalRounds) {
+            recordPomodoroSession(state.workMinutes)
+            _pomodoro.value = PomodoroState()
+            persistPomodoro(null)
+            notifyWidget()
+            return
+        }
         state = when (state.phase) {
             PomodoroPhase.FOCUS -> {
                 recordPomodoroSession(state.workMinutes)
@@ -264,6 +284,11 @@ class AppRepository private constructor(private val context: Context) {
     fun skipPomodoro(notifyService: Boolean = true) {
         var state = _pomodoro.value
         if (state.phase == PomodoroPhase.IDLE) return
+        if (state.phase == PomodoroPhase.FOCUS && state.round >= state.totalRounds) {
+            clearPomodoro()
+            if (notifyService) runCatching { com.shenqing.mobile.service.PomodoroService.stop(context) }
+            return
+        }
         if (state.phase == PomodoroPhase.FOCUS) {
             val long = state.round % state.roundsBeforeLong == 0
             val minutes = if (long) state.longBreakMinutes else state.shortBreakMinutes
@@ -525,6 +550,9 @@ class AppRepository private constructor(private val context: Context) {
         oppoZenEnabled = prefs.getBoolean(KEY_OPPO_ZEN, true),
         profileName = prefs.getString(KEY_PROFILE_NAME, "") ?: "",
         followSystem = prefs.getBoolean(KEY_FOLLOW_SYSTEM, false),
+        updateChannel = prefs.getString(KEY_UPDATE_CHANNEL, "preview") ?: "preview",
+        pomodoroWorkMinutes = prefs.getInt(KEY_POMODORO_WORK, 25),
+        pomodoroRounds = prefs.getInt(KEY_POMODORO_ROUNDS, 4),
     )
 
     private fun loadPomodoro(): PomodoroState {
@@ -542,6 +570,7 @@ class AppRepository private constructor(private val context: Context) {
                 shortBreakMinutes = json.optInt("short", 5),
                 longBreakMinutes = json.optInt("long", 15),
                 roundsBeforeLong = json.optInt("rounds", 4),
+                totalRounds = json.optInt("totalRounds", 4),
             )
         }.getOrDefault(PomodoroState())
     }
@@ -556,7 +585,7 @@ class AppRepository private constructor(private val context: Context) {
             put("remaining", state.remainingSeconds); put("total", state.totalSeconds)
             put("endsAt", state.endsAt); put("work", state.workMinutes)
             put("short", state.shortBreakMinutes); put("long", state.longBreakMinutes)
-            put("rounds", state.roundsBeforeLong)
+            put("rounds", state.roundsBeforeLong); put("totalRounds", state.totalRounds)
         }
         prefs.edit().putString(KEY_POMODORO, json.toString()).apply()
     }
@@ -601,6 +630,9 @@ class AppRepository private constructor(private val context: Context) {
         private const val KEY_OPPO_ZEN = "oppo_zen"
         private const val KEY_PROFILE_NAME = "profile_name"
         private const val KEY_FOLLOW_SYSTEM = "follow_system"
+        private const val KEY_UPDATE_CHANNEL = "update_channel"
+        private const val KEY_POMODORO_WORK = "pomodoro_work"
+        private const val KEY_POMODORO_ROUNDS = "pomodoro_rounds"
         private const val KEY_POMODORO = "pomodoro"
 
         val DEFAULT_BLOCKED = setOf(

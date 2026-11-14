@@ -190,6 +190,7 @@ private fun MainScreen(
                     },
                     onOpenSettings = { tab = 4 },
                     onOpenStats = { tab = 2 },
+                    onOpenPomodoro = { tab = 1 },
                 )
                 1 -> PomodoroScreen(repo)
                 2 -> StatsScreen(repo)

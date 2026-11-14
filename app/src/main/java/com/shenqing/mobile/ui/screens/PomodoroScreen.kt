@@ -43,7 +43,9 @@ import com.shenqing.mobile.ui.theme.LocalPalette
 fun PomodoroScreen(repo: AppRepository) {
     val palette = LocalPalette.current
     val state by repo.pomodoro.collectAsState()
-    var selectedWork by remember { mutableIntStateOf(25) }
+    val settings by repo.settings.collectAsState()
+    var selectedWork by remember(settings.pomodoroWorkMinutes) { mutableIntStateOf(settings.pomodoroWorkMinutes) }
+    var selectedRounds by remember(settings.pomodoroRounds) { mutableIntStateOf(settings.pomodoroRounds) }
     val remaining = state.remaining()
     val total = state.totalSeconds.coerceAtLeast(1)
     val progress = if (state.phase == PomodoroPhase.IDLE) 0f else (total - remaining).toFloat() / total
@@ -74,8 +76,8 @@ fun PomodoroScreen(repo: AppRepository) {
                     )
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        if (state.phase == PomodoroPhase.IDLE) "25 分钟专注 · 5 分钟休息"
-                        else "第 " + state.round + " 轮 · " + (if (state.running) "运行中" else "已暂停"),
+                        if (state.phase == PomodoroPhase.IDLE) "自定番茄数 · 25 分钟专注 / 5 分钟休息"
+                        else "第 " + state.round + " / " + state.totalRounds + " 个番茄 · " + (if (state.running) "运行中" else "已暂停"),
                         color = palette.textTertiary.asCompose(),
                         fontSize = 10.sp,
                     )
@@ -101,9 +103,31 @@ fun PomodoroScreen(repo: AppRepository) {
                                 }
                             }
                         }
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(1, 2, 3, 4, 6, 8).forEach { count ->
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            if (selectedRounds == count) Color(palette.accentSoft).copy(alpha = 0.24f)
+                                            else Color.White.copy(alpha = 0.06f)
+                                        )
+                                        .clickable { selectedRounds = count }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                ) {
+                                    Text(
+                                        "$count 个",
+                                        color = if (selectedRounds == count) palette.accent.asCompose() else palette.textSecondary.asCompose(),
+                                        fontSize = 10.sp,
+                                    )
+                                }
+                            }
+                        }
+                        Text("本轮共 " + selectedRounds + " 个番茄，完成即结束", color = palette.textTertiary.asCompose(), fontSize = 8.sp, modifier = Modifier.padding(top = 6.dp))
                         Spacer(Modifier.height(14.dp))
                         Button(
-                            onClick = { repo.startPomodoro(selectedWork) },
+                            onClick = { repo.startPomodoro(selectedWork, totalRounds = selectedRounds) },
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = palette.accent.asCompose(),
@@ -139,7 +163,7 @@ fun PomodoroScreen(repo: AppRepository) {
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "专注 " + state.workMinutes + " 分钟 · 短休息 " + state.shortBreakMinutes +
-                            " 分钟 · 每 " + state.roundsBeforeLong + " 轮长休息 " + state.longBreakMinutes + " 分钟",
+                            " 分钟 · 每 " + state.roundsBeforeLong + " 轮长休息 " + state.longBreakMinutes + " 分钟 · 共 " + state.totalRounds + " 个番茄",
                         color = palette.textSecondary.asCompose(),
                         fontSize = 10.sp,
                     )

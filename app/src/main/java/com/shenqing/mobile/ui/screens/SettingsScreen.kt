@@ -100,7 +100,7 @@ fun SettingsScreen(
             SettingsPage.PROFILE -> ProfileSettingsPage(repo, { page = SettingsPage.HOME }, { page = SettingsPage.ACCOUNT })
             SettingsPage.APPEARANCE_STORE -> AppearanceStorePage(themeRepo) { page = SettingsPage.HOME }
             SettingsPage.PLUGIN_STORE -> PluginStorePage(repo, bridge) { page = SettingsPage.HOME }
-            SettingsPage.UPDATE -> CheckUpdatePage(context) { page = SettingsPage.HOME }
+            SettingsPage.UPDATE -> CheckUpdatePage(context, repo) { page = SettingsPage.HOME }
             SettingsPage.ABOUT -> AboutPage(context) { page = SettingsPage.HOME }
             else -> page = SettingsPage.HOME
         }
