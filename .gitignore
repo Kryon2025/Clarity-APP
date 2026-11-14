@@ -1,0 +1,19 @@
+# Android / Gradle
+.gradle/
+.kotlin/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Python tooling
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shenqing.local/mobile/manifest.schema.json",
+  "title": "深清桥接清单（/manifest）",
+  "type": "object",
+  "required": [
+    "schema",
+    "protocol",
+    "host",
+    "plugin",
+    "capabilities",
+    "theme",
+    "endpoints"
+  ],
+  "properties": {
+    "schema": {
+      "const": "shenqing.bridge/v1"
+    },
+    "protocol": {
+      "type": "object",
+      "required": [
+        "major",
+        "minor"
+      ],
+      "properties": {
+        "major": {
+          "const": 1
+        },
+        "minor": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "host": {
+      "type": "object",
+      "required": [
+        "name",
+        "version",
+        "platform"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        }
+      }
+    },
+    "plugin": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "version",
+        "api_version"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "api_version": {
+          "type": "string"
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "chat",
+          "chat.stream",
+          "history",
+          "spaces",
+          "stats",
+          "theme",
+          "plugins",
+          "session.control",
+          "themes"
+        ]
+      }
+    },
+    "theme": {
+      "type": "object",
+      "required": [
+        "modes",
+        "defaultMode",
+        "tokenVersion"
+      ],
+      "properties": {
+        "modes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "solid",
+              "light",
+              "glass",
+              "ocean"
+            ]
+          }
+        },
+        "defaultMode": {
+          "enum": [
+            "solid",
+            "light",
+            "glass",
+            "ocean"
+          ]
+        },
+        "tokenVersion": {
+          "const": 1
+        }
+      }
+    },
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^/shenqing/v1/"
+      }
+    },
+    "serverTime": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": true
+}

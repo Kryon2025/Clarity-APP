@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shenqing.local/mobile/theme.schema.json",
+  "title": "深清主题响应（/theme）",
+  "type": "object",
+  "required": [
+    "schema",
+    "tokenVersion",
+    "mode",
+    "colors"
+  ],
+  "properties": {
+    "schema": {
+      "const": "shenqing.theme/v1"
+    },
+    "tokenVersion": {
+      "const": 1
+    },
+    "mode": {
+      "enum": [
+        "solid",
+        "light",
+        "glass",
+        "ocean"
+      ]
+    },
+    "colors": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+      },
+      "minProperties": 4
+    },
+    "lists": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+        }
+      }
+    },
+    "font": {
+      "type": "object",
+      "properties": {
+        "scale": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 2
+        },
+        "family": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

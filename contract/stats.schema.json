@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shenqing.local/mobile/stats.schema.json",
+  "title": "深清统计（/stats）",
+  "type": "object",
+  "required": [
+    "schema",
+    "todayMinutes",
+    "last7Days"
+  ],
+  "properties": {
+    "schema": {
+      "const": "shenqing.stats/v1"
+    },
+    "todayMinutes": {
+      "type": "number",
+      "minimum": 0
+    },
+    "weekMinutes": {
+      "type": "number",
+      "minimum": 0
+    },
+    "streakDays": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sessionCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "last7Days": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "required": [
+          "date",
+          "minutes"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "pattern": "^\\\\d{4}-\\\\d{2}-\\\\d{2}$"
+          },
+          "minutes": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "minutes",
+          "color"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "minutes": {
+            "type": "number",
+            "minimum": 0
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

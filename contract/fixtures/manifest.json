@@ -1,0 +1,47 @@
+{
+  "schema": "shenqing.bridge/v1",
+  "protocol": {
+    "major": 1,
+    "minor": 0
+  },
+  "host": {
+    "name": "深清",
+    "version": "0.17.0",
+    "platform": "windows"
+  },
+  "plugin": {
+    "id": "com.shenqing.aichat",
+    "name": "AI 沟通",
+    "version": "1.0.0",
+    "api_version": "0.1"
+  },
+  "capabilities": [
+    "chat",
+    "history",
+    "spaces",
+    "stats",
+    "theme",
+    "plugins",
+    "session.control",
+    "themes"
+  ],
+  "theme": {
+    "modes": [
+      "solid",
+      "light",
+      "glass",
+      "ocean"
+    ],
+    "defaultMode": "solid",
+    "tokenVersion": 1
+  },
+  "endpoints": {
+    "theme": "/shenqing/v1/theme",
+    "spaces": "/shenqing/v1/spaces",
+    "stats": "/shenqing/v1/stats",
+    "chat": "/shenqing/v1/chat",
+    "conversations": "/shenqing/v1/conversations",
+    "themes": "/shenqing/v1/themes"
+  },
+  "serverTime": "2026-11-14T09:30:00Z"
+}

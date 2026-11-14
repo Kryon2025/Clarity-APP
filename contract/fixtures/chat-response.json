@@ -1,0 +1,17 @@
+{
+  "schema": "shenqing.chat/v1",
+  "ok": true,
+  "conversationId": "cv_123",
+  "message": {
+    "role": "assistant",
+    "content": "先做 90 分钟那件事，其余两件各 25 分钟。",
+    "reasoning": "",
+    "tokens": 96
+  },
+  "usage": {
+    "prompt_tokens": 42,
+    "completion_tokens": 96,
+    "cost": 0.0001,
+    "currency": "CNY"
+  }
+}

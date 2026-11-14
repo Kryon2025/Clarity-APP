@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shenqing.local/mobile/theme-tokens.schema.json",
+  "title": "深清主题令牌（theme/tokens.json）",
+  "type": "object",
+  "required": [
+    "schema",
+    "tokenVersion",
+    "source",
+    "modes"
+  ],
+  "properties": {
+    "schema": {
+      "const": "shenqing.theme-tokens/v1"
+    },
+    "tokenVersion": {
+      "const": 1
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "file",
+        "sha256"
+      ],
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "font": {
+      "type": "object"
+    },
+    "modes": {
+      "type": "object",
+      "required": [
+        "solid",
+        "light",
+        "glass",
+        "ocean"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "colors",
+          "lists"
+        ],
+        "properties": {
+          "colors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+            },
+            "minProperties": 50
+          },
+          "lists": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$"
+              }
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": true
+}

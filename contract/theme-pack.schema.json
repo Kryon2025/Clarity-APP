@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shenqing.local/mobile/theme-pack.schema.json",
+  "title": "深清主题包 .sqtheme",
+  "type": "object",
+  "required": [
+    "id",
+    "name"
+  ],
+  "properties": {
+    "schema": {
+      "const": "shenqing.theme-pack/v1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 40
+    },
+    "author": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "base": {
+      "enum": [
+        "solid",
+        "light",
+        "glass",
+        "ocean"
+      ]
+    },
+    "palette": {
+      "type": "object",
+      "required": [
+        "bgTop",
+        "bgMid",
+        "bgBottom",
+        "accent",
+        "cardBg",
+        "textPrimary"
+      ],
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^#[0-9A-Fa-f]{6}$"
+      }
+    },
+    "modes": {
+      "type": "object"
+    },
+    "desktop": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

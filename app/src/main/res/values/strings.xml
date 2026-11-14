@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">深清</string>
+    <string name="app_name_mobile">深清 · 手机端</string>
+    <string name="accessibility_label">深清深度锁机</string>
+    <string name="accessibility_description">在深清/覆清专注期间拦截其他应用与桌面，确保时间没到门不开。</string>
+    <string name="widget_name">深清 · 快速专注</string>
+</resources>

@@ -1,0 +1,8 @@
+{
+  "schema": "shenqing.error/v1",
+  "ok": false,
+  "error": {
+    "code": "not_configured",
+    "message": "桌面 AI 未配置"
+  }
+}

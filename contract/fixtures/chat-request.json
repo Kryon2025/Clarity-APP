@@ -1,0 +1,11 @@
+{
+  "schema": "shenqing.chat/v1",
+  "conversationId": "cv_123",
+  "messages": [
+    {
+      "role": "user",
+      "content": "帮我整理今天的三件事"
+    }
+  ],
+  "stream": false
+}

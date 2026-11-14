@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shenqing.local/mobile/error.schema.json",
+  "title": "深清桥接错误体",
+  "type": "object",
+  "required": [
+    "schema",
+    "ok",
+    "error"
+  ],
+  "properties": {
+    "schema": {
+      "const": "shenqing.error/v1"
+    },
+    "ok": {
+      "const": false
+    },
+    "error": {
+      "type": "object",
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "unauthorized",
+            "bad_request",
+            "not_found",
+            "locked",
+            "not_configured",
+            "upstream",
+            "internal",
+            "bad_manifest",
+            "incompatible",
+            "timeout",
+            "network",
+            "bad_response"
+          ]
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
