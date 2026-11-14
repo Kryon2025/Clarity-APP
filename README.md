@@ -99,7 +99,7 @@
     ./gradlew :app:assembleDebug                     # 0 error
     cd ../深清插件开发/com.shenqing.aichat && python -m unittest discover -s tests -v
 
-已验证：Android assembleDebug 成功；插件侧 24 个 Python 测试通过；主题令牌与桌面 QML 一致（79 色 × 4 + 2 列表）。
+已验证：Android assembleDebug 成功；插件侧 24 个 Python 测试通过；主题令牌与桌面 QML 一致（79 色 × 4 + 2 列表）。源码与 APK 已推送 GitHub：Kryon2025/Clarity-APP（main）。
 未在模拟器/真机上启动验收：本机沙箱会清理后台模拟器进程；APK 构建本身通过。详见 [验收报告](<docs/验收报告.md>)。
 
 ## 深度锁机的边界（必须知道）
