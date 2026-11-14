@@ -48,6 +48,8 @@ class AppRepository private constructor(private val context: Context) {
         val quickFocusSpaceId: String = "sp_light",
         val lastWidgetUpdate: Long = 0L,
         val oppoZenEnabled: Boolean = true,
+        val profileName: String = "",
+        val followSystem: Boolean = false,
     )
 
     init {
@@ -148,6 +150,19 @@ class AppRepository private constructor(private val context: Context) {
         _settings.value = Settings()
         updateStats()
         notifyWidget()
+    }
+
+    fun setFollowSystem(enabled: Boolean) {
+        _settings.value = _settings.value.copy(followSystem = enabled)
+        prefs.edit().putBoolean(KEY_FOLLOW_SYSTEM, enabled).apply()
+        runCatching { com.shenqing.mobile.data.ThemeRepository.get(context).refreshSystem() }
+        notifyWidget()
+    }
+
+    fun setProfileName(name: String) {
+        val text = name.trim().take(40)
+        _settings.value = _settings.value.copy(profileName = text)
+        prefs.edit().putString(KEY_PROFILE_NAME, text).apply()
     }
 
     fun setOppoZen(enabled: Boolean) {
@@ -508,6 +523,8 @@ class AppRepository private constructor(private val context: Context) {
         quickFocusSpaceId = prefs.getString(KEY_QUICK_SPACE, "sp_light") ?: "sp_light",
         lastWidgetUpdate = prefs.getLong(KEY_WIDGET_UPDATE, 0),
         oppoZenEnabled = prefs.getBoolean(KEY_OPPO_ZEN, true),
+        profileName = prefs.getString(KEY_PROFILE_NAME, "") ?: "",
+        followSystem = prefs.getBoolean(KEY_FOLLOW_SYSTEM, false),
     )
 
     private fun loadPomodoro(): PomodoroState {
@@ -582,6 +599,8 @@ class AppRepository private constructor(private val context: Context) {
         private const val KEY_CLOUD_LAST_AT = "cloud_last_at"
         private const val KEY_CLOUD_DEVICE = "cloud_device"
         private const val KEY_OPPO_ZEN = "oppo_zen"
+        private const val KEY_PROFILE_NAME = "profile_name"
+        private const val KEY_FOLLOW_SYSTEM = "follow_system"
         private const val KEY_POMODORO = "pomodoro"
 
         val DEFAULT_BLOCKED = setOf(

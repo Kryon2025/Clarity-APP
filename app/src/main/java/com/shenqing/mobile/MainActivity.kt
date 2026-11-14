@@ -3,6 +3,7 @@ package com.shenqing.mobile
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -97,6 +98,11 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        runCatching { ThemeRepository.get(this).refreshSystem() }
     }
 
     override fun onNewIntent(intent: Intent) {

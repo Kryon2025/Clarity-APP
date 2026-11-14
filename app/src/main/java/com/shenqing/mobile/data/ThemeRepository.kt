@@ -1,6 +1,7 @@
 package com.shenqing.mobile.data
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Color
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -75,7 +76,7 @@ class ThemeRepository private constructor(private val context: Context) {
         if (repo.themeId.value !in builtInModes && findPackFile(repo.themeId.value) == null) {
             repo.setTheme("solid")
         }
-        _current.value = paletteFor(repo.themeId.value)
+        _current.value = loadCurrent()
         _entries.value = scanEntries()
     }
 
@@ -92,9 +93,31 @@ class ThemeRepository private constructor(private val context: Context) {
 
     fun apply(id: String) {
         repo.setTheme(id)
+        if (repo.settings.value.followSystem) repo.setFollowSystem(false)
         _current.value = paletteFor(id)
         refreshEntries()
         runCatching { com.shenqing.mobile.widget.FocusWidgetProvider.update(context) }
+    }
+
+    fun effectivePalette(): ThemePalette = loadCurrent()
+
+    fun refreshSystem() {
+        _current.value = loadCurrent()
+        runCatching { com.shenqing.mobile.widget.FocusWidgetProvider.update(context) }
+    }
+
+    fun isSystemDark(): Boolean =
+        (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
+    fun effectiveThemeId(): String =
+        if (repo.settings.value.followSystem) (if (isSystemDark()) "solid" else "light")
+        else repo.themeId.value
+
+    private fun loadCurrent(): ThemePalette {
+        if (repo.settings.value.followSystem) {
+            return builtIn(if (isSystemDark()) "solid" else "light")
+        }
+        return paletteFor(repo.themeId.value)
     }
 
     fun paletteFor(id: String): ThemePalette {
@@ -166,7 +189,10 @@ class ThemeRepository private constructor(private val context: Context) {
 
     fun isBuiltIn(id: String): Boolean = id in builtInModes
 
-    fun currentThemeMode(): String = if (isBuiltIn(repo.themeId.value)) repo.themeId.value else "custom:" + repo.themeId.value
+    fun currentThemeMode(): String {
+        val id = effectiveThemeId()
+        return if (isBuiltIn(id)) id else "custom:" + id
+    }
 
     fun importPaletteTheme(id: String, name: String, description: String, palette: JSONObject): ThemeEntry? {
         val pack = JSONObject().apply {
@@ -221,8 +247,6 @@ class ThemeRepository private constructor(private val context: Context) {
     }
 
     fun packJson(id: String): String? = findPackFile(id)?.takeIf { it.isFile }?.readText()
-
-    private fun loadCurrent(): ThemePalette = paletteFor(repo.themeId.value)
 
     private fun builtIn(mode: String): ThemePalette {
         val modes = builtInJson.optJSONObject("modes") ?: JSONObject()

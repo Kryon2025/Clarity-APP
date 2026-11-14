@@ -34,7 +34,7 @@ class FocusWidgetProvider : AppWidgetProvider() {
         private fun updateOne(context: Context, manager: AppWidgetManager, widgetId: Int) {
             val repo = AppRepository.get(context)
             val themeRepo = ThemeRepository.get(context)
-            val palette = themeRepo.current.value
+            val palette = themeRepo.effectivePalette()
             val stats = repo.stats.value
             val settings = repo.settings.value
             val space = repo.spaceById(settings.quickFocusSpaceId)

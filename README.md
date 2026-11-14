@@ -24,6 +24,17 @@
   - 不加载桌面 Python/QML，原生渲染插件卡片；
   - 主题包也通过插件工作区/桥接分发。
 
+## 自动发布（测试版）
+
+`.github/workflows/release.yml` 在 **每次 push 到 main** 时：
+
+1. Ubuntu + JDK 17 + Android SDK 35 构建 debug APK；
+2. 生成唯一 tag：v<versionName>-build.<GitHub run number>；
+3. 在 GitHub Releases 发布 **pre-release** 并附带 APK；
+4. 明确 `make_latest: false`，**目前不发布正式版 / 不占用 latest**。
+
+手机端「检查更新」读取 releases 列表（包含预发布），因此每次自动构建都能被检测到。正式发版前保持 pre-release 即可。
+
 ## 构建 / 安装
 
 需要 Android SDK（compileSdk 35、build-tools 35.0.0）与 JDK 17：
@@ -56,6 +67,18 @@
 
   会备份 settings.json 并写入 custom_themes，重启深清即生效；
 - 桌面已安装的自定义主题会由桥接 /themes 列出来，手机可以一键下载应用。
+
+## 设置 / 商店
+
+设置页顶部是账户卡：未登录显示「登录」，登录后显示昵称/邮箱并可进入「个人资料」设置本机昵称。下面是一组可点击进入新页面的入口：
+
+- **外观商店**：拉取桌面在线主题目录（palette），应用后写入本地 `.sqtheme`；同时列出内置/本地主题；
+- **插件商店**：拉取桌面商店插件目录，显示桌面已安装插件的 `mobile` 摘要/指标；手机端不执行桌面插件，安装说明在页面内；
+- **账户与同步**：商店账号登录、从电脑读取配置、立即同步/拉取/上传；
+- **检查更新**：GitHub Release 检查当前版本；
+- **关于**：版本、GitHub 仓库与说明。
+
+原设置页的主题、字号、锁机权限、桌面连接、组件、数据清理仍在下方。
 
 ## 账户同步（桌面 v0.20 / 服务端 /api/sync）
 
