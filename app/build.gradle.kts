@@ -13,15 +13,28 @@ android {
         applicationId = "com.shenqing.mobile"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.1.1"
         buildConfigField("String", "BUILD_ID", "\"" + ((project.findProperty("shenqingBuildId") as String?) ?: "local") + "\"")
         vectorDrawables { useSupportLibrary = true }
         resourceConfigurations += listOf("zh", "en")
     }
 
+    signingConfigs {
+        create("shenqingTest") {
+            storeFile = rootProject.file("keystore/shenqing-test.jks")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("shenqingTest")
+        }
         release {
+            signingConfig = signingConfigs.getByName("shenqingTest")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

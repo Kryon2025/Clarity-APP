@@ -24,6 +24,13 @@
   - 不加载桌面 Python/QML，原生渲染插件卡片；
   - 主题包也通过插件工作区/桥接分发。
 
+## 测试签名与安装冲突
+
+- 所有预发布 APK 使用仓库内固定的测试签名 `keystore/shenqing-test.jks`（androiddebugkey / android），本地和 GitHub Actions 一致；
+- 不要把它当正式签名；正式发版应换成独立的生产 keystore；
+- 如果手机上已有旧 CI 构建（runner 临时 debug key 签名），首次升级会报「签名冲突」，需要卸载旧 App 一次；之后同一测试签名的更新可直接覆盖安装；
+- 1.1.1 起版本号递增，不再出现同版本反复安装的问题。
+
 ## 自动发布（测试版）
 
 `.github/workflows/release.yml` 在 **每次 push 到 main** 时：
@@ -126,7 +133,7 @@
     ./gradlew :app:assembleDebug                     # 0 error
     cd ../深清插件开发/com.shenqing.aichat && python -m unittest discover -s tests -v
 
-当前版本：1.1.0（versionCode 2）
+当前版本：1.1.1（versionCode 3）
 
 已验证：Android assembleDebug 成功；插件侧 24 个 Python 测试通过；主题令牌与桌面 QML 一致（79 色 × 4 + 2 列表）。源码与 APK 已推送 GitHub：Kryon2025/Clarity-APP（main）。
 未在模拟器/真机上启动验收：本机沙箱会清理后台模拟器进程；APK 构建本身通过。详见 [验收报告](<docs/验收报告.md>)。
