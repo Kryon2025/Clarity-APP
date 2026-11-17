@@ -80,6 +80,7 @@
 设置页顶部是账户卡：未登录显示「登录」，登录后显示昵称/邮箱并可进入「个人资料」设置本机昵称。下面是一组可点击进入新页面的入口：
 
 - **跟随系统**：外观开关，系统深色用纯色、浅色用浅色主题；手动选主题会关闭跟随；
+- **OPPO 系统效果测试**：设置 → OPPO 系统效果，可发送 Android 16 Live Updates 测试通知，直接观察 ColorOS 是否上胶囊/流体云；私有流光控件无公开 SDK，不能直接嵌入。
 - **液态玻璃视觉**：卡片改为半透明玻璃 + 双色流光描边 + 高光；OPPO/ColorOS 自动使用「流光」彩边，其他厂商用中性玻璃。系统私有控件没有公开 API，采用自适应仿真；
 - **外观商店**：拉取桌面在线主题目录（palette），应用后写入本地 `.sqtheme`；同时列出内置/本地主题；
 - **插件商店**：拉取桌面商店插件目录，显示桌面已安装插件的 `mobile` 摘要/指标；手机端不执行桌面插件，安装说明在页面内；
@@ -133,7 +134,7 @@
     ./gradlew :app:assembleDebug                     # 0 error
     cd ../深清插件开发/com.shenqing.aichat && python -m unittest discover -s tests -v
 
-当前版本：1.1.1（versionCode 3）
+当前版本：1.1.2（versionCode 4）
 
 已验证：Android assembleDebug 成功；插件侧 24 个 Python 测试通过；主题令牌与桌面 QML 一致（79 色 × 4 + 2 列表）。源码与 APK 已推送 GitHub：Kryon2025/Clarity-APP（main）。
 未在模拟器/真机上启动验收：本机沙箱会清理后台模拟器进程；APK 构建本身通过。详见 [验收报告](<docs/验收报告.md>)。

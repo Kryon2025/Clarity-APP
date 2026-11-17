@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Extension
+import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Person
@@ -102,6 +103,7 @@ fun SettingsScreen(
             SettingsPage.PLUGIN_STORE -> PluginStorePage(repo, bridge) { page = SettingsPage.HOME }
             SettingsPage.UPDATE -> CheckUpdatePage(context, repo) { page = SettingsPage.HOME }
             SettingsPage.ABOUT -> AboutPage(context) { page = SettingsPage.HOME }
+            SettingsPage.OPPO_SYSTEM -> OppoSystemPage(context) { page = SettingsPage.HOME }
             else -> page = SettingsPage.HOME
         }
         return
@@ -135,6 +137,9 @@ fun SettingsScreen(
                     SettingsMenuRow(Icons.Outlined.Person, "账户与同步", "商店账号 / 主题与设置", { page = SettingsPage.ACCOUNT })
                     SettingsMenuRow(Icons.Outlined.SystemUpdate, "检查更新", "GitHub Release", { page = SettingsPage.UPDATE })
                     SettingsMenuRow(Icons.Outlined.Info, "关于", "版本 / 仓库 / 说明", { page = SettingsPage.ABOUT })
+                    if (com.shenqing.mobile.ui.VendorUi.isOppo()) {
+                        SettingsMenuRow(Icons.Outlined.Layers, "OPPO 系统效果", "流光 / 流体云兼容性测试", { page = SettingsPage.OPPO_SYSTEM })
+                    }
                 }
             }
         }

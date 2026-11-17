@@ -82,7 +82,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 enum class SettingsPage {
-    HOME, ACCOUNT, PROFILE, APPEARANCE_STORE, PLUGIN_STORE, UPDATE, ABOUT
+    HOME, ACCOUNT, PROFILE, APPEARANCE_STORE, PLUGIN_STORE, UPDATE, ABOUT, OPPO_SYSTEM
 }
 
 @Composable
